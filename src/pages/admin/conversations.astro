@@ -94,15 +94,19 @@ const statusLabels: Record<string, string> = {
                       <span class="w-2 h-2 bg-pounce-orange rounded-full"></span>
                     )}
                   </div>
-                  <p class="text-sm text-gray-600 line-clamp-2">{conv.messages[conv.messages.length - 1].content}</p>
-                  <div class="mt-2 flex items-center gap-2">
-                    <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status]}`}>
-                      {statusLabels[conv.status]}
-                    </span>
-                    <span class="text-xs text-gray-400">
-                      {new Date(conv.messages[conv.messages.length - 1].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                  {conv.messages.length > 0 && (
+                    <>
+                      <p class="text-sm text-gray-600 line-clamp-2">{conv.messages[conv.messages.length - 1]!.content}</p>
+                      <div class="mt-2 flex items-center gap-2">
+                        <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status]}`}>
+                          {statusLabels[conv.status]}
+                        </span>
+                        <span class="text-xs text-gray-400">
+                          {new Date(conv.messages[conv.messages.length - 1]!.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -114,25 +118,29 @@ const statusLabels: Record<string, string> = {
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
             <!-- Conversation Header -->
             <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                  {conversations[0].lead.name.charAt(0)}
-                </div>
-                <div>
-                  <p class="font-medium text-charcoal">{conversations[0].lead.name}</p>
-                  <p class="text-sm text-gray-500">{conversations[0].lead.email}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[conversations[0].status]}`}>
-                  {statusLabels[conversations[0].status]}
-                </span>
-              </div>
+              {conversations.length > 0 && (
+                <>
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
+                      {conversations[0]!.lead.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p class="font-medium text-charcoal">{conversations[0]!.lead.name}</p>
+                      <p class="text-sm text-gray-500">{conversations[0]!.lead.email}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[conversations[0]!.status]}`}>
+                      {statusLabels[conversations[0]!.status]}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             <!-- Messages -->
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
-              {conversations[0].messages.map((message) => (
+              {conversations.length > 0 && conversations[0]!.messages.map((message) => (
                 <div class={`flex ${message.source === 'customer' ? 'justify-start' : 'justify-end'}`}>
                   <div class={`max-w-[70%] rounded-2xl px-4 py-3 ${
                     message.source === 'customer'

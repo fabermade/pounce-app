@@ -225,14 +225,27 @@ leads (
   status, created_at, updated_at
 )
 
+-- Lead statuses (pipeline)
+--   new           → Just arrived, no response sent yet
+--   contacted      → AI sent initial response, waiting for reply
+--   customer_waiting → Lead replied back, needs AI or human response
+--   scheduled     → Meeting/call booked
+--   closed_won    → Deal closed after meeting
+--   closed_lost   → Lead went cold or declined
+--   escalated     → Handed off to human (trigger phrases, edge cases)
+
 conversations (
   id, lead_id, provider, external_id,
+  last_inbound_at,     -- when the customer last messaged us
+  last_outbound_at,    -- when we last responded
+  awaiting_reply boolean, -- true = customer is waiting on us
   created_at
 )
 
 messages (
   id, conversation_id, role, content,
-  source, created_at
+  source,  -- 'ai' | 'human' | 'customer'
+  created_at
 )
 
 business_config (

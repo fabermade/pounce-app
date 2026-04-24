@@ -260,6 +260,7 @@ When Pip needs an API endpoint that doesn't exist yet:
 5. **Graceful degradation.** If LLM call fails, queue the lead for retry, don't lose it.
 6. **Type safety everywhere.** Drizzle generates types from schema. Use them. No `any`.
 7. **Test provider modules.** Mock the external API, test the interface compliance.
+8. **Agent hooks from day one.** Even if agent mode is optional, expose webhook triggers, context endpoints, and action APIs so an agent can plug in later without a retrofit.
 
 ## File Structure
 

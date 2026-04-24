@@ -419,6 +419,58 @@ true-leads/
 
 ---
 
+## Agent Integration (Optional)
+
+True Leads works without an agent (pure API + LLM calls). But some customers want a persistent AI agent managing their pipeline — reading context, making nuanced decisions, handling edge cases an LLM call alone can't.
+
+**Agent mode is optional, not required.** The core product works standalone.
+
+### How Agent Mode Works
+
+```
+Standard mode (default):
+  Lead → API → LLM call → Send email → Done
+
+Agent mode (optional):
+  Lead → API → OpenClaw agent wakes → Agent reads full context → 
+  Agent drafts reply → Agent sends via Resend → Agent logs to DB → Done
+```
+
+### Agent Integration Points
+
+The API provides hooks that an agent can consume:
+
+1. **Webhook triggers** — `POST /api/hooks/lead-created` fires when a new lead arrives. An OpenClaw agent (or any webhook consumer) can subscribe.
+2. **Conversation context endpoint** — `GET /api/admin/conversations/:id/context` returns full conversation history + business config + lead status. An agent calls this before drafting a reply.
+3. **Action endpoints** — `POST /api/admin/conversations/:id/reply` lets an agent send a response. Same endpoint humans use for manual replies.
+4. **Status updates** — `PATCH /api/admin/leads/:id/status` lets an agent move leads through the pipeline.
+5. **Wake hook** — `POST /hooks/wake` (OpenClaw-compatible) triggers an agent immediately when a lead arrives.
+
+### Config Toggle
+
+```json
+{
+  "agent": {
+    "enabled": true,
+    "mode": "openclaw",  // "openclaw" | "webhook" | "none"
+    "webhookUrl": "https://agent.company.com/hooks/wake",
+    "webhookToken": "bearer-token-here"
+  }
+}
+```
+
+When `agent.mode` is `"none"` (default), the standard LLM pipeline handles everything. When `"openclaw"` or `"webhook"`, inbound leads trigger the agent via webhook and the agent calls back into the API to send replies.
+
+### Why Keep Agent Mode
+
+- Some businesses want a "face" — an agent with personality, not just automated emails
+- Agents can handle edge cases (escalation, multi-step negotiation, custom logic)
+- Agents can do research (LinkedIn lookup, CRM deep-dive) before responding
+- Managed tier customers may prefer we run an agent for them
+- It's our competitive advantage — we *are* an AI agent company
+
+---
+
 ## Open Questions
 
 1. **Database:** PostgreSQL (Neon free tier) vs SQLite (simpler for self-host)? Recommend Postgres for managed, SQLite for self-host option.
@@ -426,3 +478,4 @@ true-leads/
 3. **Admin framework:** Separate dashboard app or same Astro project? Same project is simpler for MVP.
 4. **LLM costs:** Who eats the LLM API costs? Customer's own key (self-host) or included in subscription (managed)?
 5. **Multi-tenancy:** Single database with tenant isolation, or separate databases per customer? Start single-tenant, add multi-tenancy in v2.
+6. **Agent vs standard:** Default to standard LLM pipeline, but expose agent hooks from day one so it's not a retrofit.

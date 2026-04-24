@@ -342,13 +342,66 @@ events (
    - Hank still runs for other tasks (personal assistant)
    - But lead pipeline now goes through True Leads
 
+## Licensing & DRM (Self-Host Tier)
+
+True Leads self-host requires a license key. The managed tier doesn't need one — we control hosting.
+
+### License Model
+
+| Tier | Price | Sites | Features |
+|------|-------|-------|----------|
+| **Starter** | $999/yr | 1 domain | Core features, 1 LLM provider, 1 email provider |
+| **Business** | $2,999/yr | 5 domains | All providers, priority support, analytics |
+| **Enterprise** | $7,999/yr | Unlimited | Everything, custom integrations, SLA |
+
+### How It Works
+
+```
+1. Customer buys on trueleads.ai → gets license key (TL-XXXX-XXXX-XXXX)
+2. Customer enters key in admin Settings → License section
+3. On startup: True Leads POSTs to license server
+   { key: "TL-XXXX", domain: "leads.customer.com" }
+4. License server validates: key exists? domain authorized? not expired? within site limit?
+5. Returns: { valid: true, expires: "2027-04-24", sites: 1, features: [...] }
+6. True Leads caches result, re-verifies every 24 hours
+7. If invalid: dashboard shows warning, email sending disabled, data stays readable
+```
+
+### Grace Periods
+
+- License check fails (network issue): 72-hour grace period, full functionality
+- After 72h without verification: read-only mode (can view data, can't send emails or use LLM)
+- License expired: 14-day grace with watermark on outbound emails ("Sent via True Leads — license expired")
+- After 14 days: sending disabled
+
+### License Server API (we host, private)
+
+- `POST /v1/license/verify` — validate key + domain (called by self-hosted instances)
+- `POST /v1/license/activate` — bind key to a domain (first use)
+- `POST /v1/license/deactivate` — release a domain (customer migrates to new server)
+- `GET /v1/license/status/:key` — admin view of all activations for a key
+- `POST /v1/license/generate` — create new key (internal, admin only)
+
+### Anti-Piracy
+
+1. **Domain binding** — key only works on registered domain(s)
+2. **Phone home** — periodic verification (24h), graceful offline window (72h)
+3. **Feature flags** — license response includes allowed features per tier
+4. **Compiled distribution** — ship bundled/minified JS for self-host, not raw source
+5. **Key in env var** — `TRUELEADS_LICENSE_KEY`, not in config DB
+
+### Repos
+
+| Repo | Visibility | Purpose |
+|------|-----------|----------|
+| `hamburgers/TrueLeads` | Public (or private) | Product code + client-side license check |
+| `hamburgers/trueleads-license` | **Private** | License server, key generation, activation management |
+
+The license server is never exposed to customers. It's our internal infrastructure.
+
 ---
 
-## Product Positioning
-
-**Tagline:** "Your leads deserve a response in seconds, not days."
-
-**Pricing:**
+## Pricing (Updated)
 
 | Tier | Price | Includes |
 |------|-------|----------|

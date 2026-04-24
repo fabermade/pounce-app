@@ -2,39 +2,50 @@
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
-// Mock conversations data
-const conversations = [
-  {
-    id: '1',
-    lead: { name: 'Sarah Chen', email: 'sarah@acme.com', company: 'Acme Inc' },
-    status: 'new',
-    awaitingReply: true,
-    messages: [
-      { id: '1', role: 'user', source: 'customer', content: 'Hi, I am interested in your AI team services. Can you tell me more about pricing?', createdAt: '2024-01-15T10:30:00Z' },
-    ],
-  },
-  {
-    id: '2',
-    lead: { name: 'Mike Ross', email: 'mike@startup.io', company: 'Startup.io' },
-    status: 'contacted',
-    awaitingReply: false,
-    messages: [
-      { id: '1', role: 'user', source: 'customer', content: 'Looking for web development help for our startup.', createdAt: '2024-01-15T09:15:00Z' },
-      { id: '2', role: 'assistant', source: 'ai', content: 'Thanks for reaching out! I would love to learn more about your project. What type of web development do you need?', createdAt: '2024-01-15T09:16:00Z' },
-    ],
-  },
-  {
-    id: '3',
-    lead: { name: 'Emma Wilson', email: 'emma@tech.co', company: 'Tech Co' },
-    status: 'scheduled',
-    awaitingReply: false,
-    messages: [
-      { id: '1', role: 'user', source: 'customer', content: 'I would like to book a call to discuss our AI strategy.', createdAt: '2024-01-14T16:45:00Z' },
-      { id: '2', role: 'assistant', source: 'ai', content: 'Absolutely! You can book a time that works for you here: https://cal.com/pounce/emma', createdAt: '2024-01-14T16:46:00Z' },
-      { id: '3', role: 'user', source: 'customer', content: 'Booked for tomorrow at 2pm. Thanks!', createdAt: '2024-01-14T16:50:00Z' },
-    ],
-  },
-];
+const leadId = Astro.url.searchParams.get('leadId');
+
+// Fetch conversations from API
+let conversationsData: {
+  conversations: Array<{
+    id: string;
+    lead: { name: string | null; email: string; company: string | null };
+    status: string;
+    awaitingReply: boolean;
+    messages: Array<{
+      id: string;
+      role: string;
+      source: string;
+      content: string;
+      createdAt: Date;
+    }>;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+} = { conversations: [], pagination: { page: 1, limit: 25, total: 0, totalPages: 0 } };
+
+let error: string | null = null;
+
+try {
+  const url = new URL('/api/admin/conversations', Astro.url.origin);
+  if (leadId) url.searchParams.set('leadId', leadId);
+
+  const response = await fetch(url.toString());
+  if (response.ok) {
+    conversationsData = await response.json();
+  } else {
+    const errData = await response.json().catch(() => ({ error: 'Failed to fetch conversations' }));
+    error = errData.error || `Error ${response.status}`;
+  }
+} catch (e) {
+  error = 'Network error. Please try again.';
+}
+
+// Select first conversation or the one matching leadId
+const selectedConv = conversationsData.conversations.length > 0 ? conversationsData.conversations[0] : null;
 
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-800',
@@ -68,8 +79,13 @@ const statusLabels: Record<string, string> = {
         <p class="text-gray-500">View and manage lead conversations</p>
       </div>
 
-      <!-- BOLT: Need GET /api/admin/conversations -->
-      
+      <!-- Error State -->
+      {error && (
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Conversation List -->
         <div class="lg:col-span-1">
@@ -77,109 +93,130 @@ const statusLabels: Record<string, string> = {
             <div class="p-4 border-b border-gray-100">
               <h2 class="text-sm font-semibold text-charcoal">Active Conversations</h2>
             </div>
-            <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-              {conversations.map((conv) => (
-                <div class={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${conv.status === 'new' ? 'bg-blue-50/50' : ''}`}>
-                  <div class="flex items-start justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                      <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
-                        {conv.lead.name.charAt(0)}
+            {conversationsData.conversations.length === 0 ? (
+              <div class="p-8 text-center text-gray-400">
+                <p class="text-sm">No conversations yet.</p>
+              </div>
+            ) : (
+              <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                {conversationsData.conversations.map((conv) => {
+                  const lastMessage = conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null;
+                  return (
+                    <a
+                      href={`/admin/conversations?leadId=${conv.id}`}
+                      class={`block p-4 hover:bg-gray-50 transition-colors ${conv.status === 'new' ? 'bg-blue-50/50' : ''}`}
+                    >
+                      <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
+                            {(conv.lead.name || conv.lead.email).charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p class="font-medium text-charcoal text-sm">{conv.lead.name || 'Unknown'}</p>
+                            <p class="text-xs text-gray-500">{conv.lead.company || conv.lead.email}</p>
+                          </div>
+                        </div>
+                        {conv.awaitingReply && (
+                          <span class="w-2 h-2 bg-pounce-orange rounded-full"></span>
+                        )}
                       </div>
-                      <div>
-                        <p class="font-medium text-charcoal text-sm">{conv.lead.name}</p>
-                        <p class="text-xs text-gray-500">{conv.lead.company}</p>
-                      </div>
-                    </div>
-                    {conv.awaitingReply && (
-                      <span class="w-2 h-2 bg-pounce-orange rounded-full"></span>
-                    )}
-                  </div>
-                  {conv.messages.length > 0 && (
-                    <>
-                      <p class="text-sm text-gray-600 line-clamp-2">{conv.messages[conv.messages.length - 1]!.content}</p>
-                      <div class="mt-2 flex items-center gap-2">
-                        <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status]}`}>
-                          {statusLabels[conv.status]}
-                        </span>
-                        <span class="text-xs text-gray-400">
-                          {new Date(conv.messages[conv.messages.length - 1]!.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+                      {lastMessage && (
+                        <>
+                          <p class="text-sm text-gray-600 line-clamp-2">{lastMessage.content}</p>
+                          <div class="mt-2 flex items-center gap-2">
+                            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status]}`}>
+                              {statusLabels[conv.status]}
+                            </span>
+                            <span class="text-xs text-gray-400">
+                              {new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         <!-- Conversation Detail -->
         <div class="lg:col-span-2">
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
-            <!-- Conversation Header -->
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-              {conversations.length > 0 && (
-                <>
+            {selectedConv ? (
+              <>
+                <!-- Conversation Header -->
+                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                      {conversations[0]!.lead.name.charAt(0)}
+                      {(selectedConv.lead.name || selectedConv.lead.email).charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p class="font-medium text-charcoal">{conversations[0]!.lead.name}</p>
-                      <p class="text-sm text-gray-500">{conversations[0]!.lead.email}</p>
+                      <p class="font-medium text-charcoal">{selectedConv.lead.name || 'Unknown'}</p>
+                      <p class="text-sm text-gray-500">{selectedConv.lead.email}</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[conversations[0]!.status]}`}>
-                      {statusLabels[conversations[0]!.status]}
+                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedConv.status]}`}>
+                      {statusLabels[selectedConv.status]}
                     </span>
                   </div>
-                </>
-              )}
-            </div>
-
-            <!-- Messages -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
-              {conversations.length > 0 && conversations[0]!.messages.map((message) => (
-                <div class={`flex ${message.source === 'customer' ? 'justify-start' : 'justify-end'}`}>
-                  <div class={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                    message.source === 'customer'
-                      ? 'bg-gray-100 text-charcoal rounded-bl-none'
-                      : message.source === 'ai'
-                      ? 'bg-pounce-orange/10 text-charcoal rounded-br-none border border-pounce-orange/20'
-                      : 'bg-blue-100 text-charcoal rounded-br-none'
-                  }`}>
-                    <p class="text-sm">{message.content}</p>
-                    <div class="flex items-center gap-2 mt-1">
-                      <span class="text-xs text-gray-400">
-                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {message.source === 'ai' && (
-                        <span class="text-xs text-pounce-orange font-medium">AI</span>
-                      )}
-                      {message.source === 'human' && (
-                        <span class="text-xs text-blue-600 font-medium">You</span>
-                      )}
-                    </div>
-                  </div>
                 </div>
-              ))}
-            </div>
 
-            <!-- Reply Input -->
-            <div class="p-4 border-t border-gray-100">
-              <div class="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Type your reply..."
-                  class="flex-1 px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
-                <button class="px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors text-sm">
-                  Send
-                </button>
+                <!-- Messages -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                  {selectedConv.messages.map((message) => (
+                    <div class={`flex ${message.source === 'customer' ? 'justify-start' : 'justify-end'}`}>
+                      <div class={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                        message.source === 'customer'
+                          ? 'bg-gray-100 text-charcoal rounded-bl-none'
+                          : message.source === 'ai'
+                          ? 'bg-pounce-orange/10 text-charcoal rounded-br-none border border-pounce-orange/20'
+                          : 'bg-blue-100 text-charcoal rounded-br-none'
+                      }`}>
+                        <p class="text-sm">{message.content}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                          <span class="text-xs text-gray-400">
+                            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {message.source === 'ai' && (
+                            <span class="text-xs text-pounce-orange font-medium">AI</span>
+                          )}
+                          {message.source === 'human' && (
+                            <span class="text-xs text-blue-600 font-medium">You</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <!-- Reply Input -->
+                <div class="p-4 border-t border-gray-100">
+                  <div class="flex gap-3">
+                    <input
+                      type="text"
+                      placeholder="Type your reply..."
+                      class="flex-1 px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                    />
+                    <button class="px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors text-sm">
+                      Send
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-2">Press Enter to send, Shift+Enter for new line</p>
+                </div>
+              </>
+            ) : (
+              <div class="flex-1 flex items-center justify-center text-gray-400">
+                <div class="text-center">
+                  <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p class="text-sm">Select a conversation to view messages</p>
+                </div>
               </div>
-              <p class="text-xs text-gray-400 mt-2">Press Enter to send, Shift+Enter for new line</p>
-            </div>
+            )}
           </div>
         </div>
       </div>

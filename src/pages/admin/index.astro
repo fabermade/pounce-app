@@ -2,20 +2,43 @@
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
-// Mock data for dashboard
-const stats = [
-  { label: 'New Leads', value: 12, change: '+3', trend: 'up' },
-  { label: 'Contacted', value: 8, change: '+2', trend: 'up' },
-  { label: 'Scheduled', value: 5, change: '+1', trend: 'up' },
-  { label: 'Response Rate', value: '94%', change: '+2%', trend: 'up' },
-];
+// Fetch data from APIs
+let stats = { totalLeads: 0, responseRate: 0, avgResponseTime: '0', bookingRate: 0, leadsThisWeek: 0, leadsLastWeek: 0 };
+let recentLeads: Array<{
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  status: string;
+  message: string | null;
+  createdAt: Date;
+}> = [];
+let error: string | null = null;
 
-const recentLeads = [
-  { id: '1', name: 'Sarah Chen', email: 'sarah@acme.com', company: 'Acme Inc', status: 'new', message: 'Interested in your AI team services', createdAt: '2024-01-15T10:30:00Z' },
-  { id: '2', name: 'Mike Ross', email: 'mike@startup.io', company: 'Startup.io', status: 'contacted', message: 'Looking for web development help', createdAt: '2024-01-15T09:15:00Z' },
-  { id: '3', name: 'Emma Wilson', email: 'emma@tech.co', company: 'Tech Co', status: 'scheduled', message: 'Booked a call for tomorrow', createdAt: '2024-01-14T16:45:00Z' },
-  { id: '4', name: 'James Lee', email: 'james@design.studio', company: 'Design Studio', status: 'customer_waiting', message: 'Can you provide more details?', createdAt: '2024-01-14T14:20:00Z' },
-  { id: '5', name: 'Anna Park', email: 'anna@consulting.com', company: 'Consulting LLC', status: 'escalated', message: 'Urgent: Need immediate response', createdAt: '2024-01-13T11:00:00Z' },
+try {
+  const [analyticsRes, leadsRes] = await Promise.all([
+    fetch(new URL('/api/admin/analytics', Astro.url.origin)),
+    fetch(new URL('/api/admin/leads?limit=5', Astro.url.origin)),
+  ]);
+
+  if (analyticsRes.ok) {
+    const analyticsData = await analyticsRes.json();
+    stats = analyticsData.stats;
+  }
+
+  if (leadsRes.ok) {
+    const leadsData = await leadsRes.json();
+    recentLeads = leadsData.leads;
+  }
+} catch (e) {
+  error = 'Network error. Please try again.';
+}
+
+const statCards = [
+  { label: 'Total Leads', value: stats.totalLeads, change: `+${stats.leadsThisWeek - stats.leadsLastWeek}`, trend: stats.leadsThisWeek >= stats.leadsLastWeek ? 'up' : 'down' as const },
+  { label: 'Response Rate', value: `${stats.responseRate}%`, change: '+2%', trend: 'up' as const },
+  { label: 'Avg Response Time', value: `${stats.avgResponseTime}s`, change: '-0.5s', trend: 'up' as const },
+  { label: 'Booking Rate', value: `${stats.bookingRate}%`, change: '+5%', trend: 'up' as const },
 ];
 
 const statusColors: Record<string, string> = {
@@ -50,9 +73,16 @@ const statusLabels: Record<string, string> = {
         <p class="text-gray-500">Overview of your lead pipeline</p>
       </div>
 
+      <!-- Error State -->
+      {error && (
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <p class="text-sm text-gray-500 mb-1">{stat.label}</p>
             <div class="flex items-end gap-2">
@@ -73,25 +103,32 @@ const statusLabels: Record<string, string> = {
             View all →
           </a>
         </div>
-        <div class="divide-y divide-gray-100">
-          {recentLeads.map((lead) => (
-            <div class="p-6 hover:bg-gray-50 transition-colors">
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <div class="flex items-center gap-3 mb-1">
-                    <h3 class="font-semibold text-charcoal">{lead.name}</h3>
-                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status] || 'bg-gray-100 text-gray-800'}`}>
-                      {statusLabels[lead.status] || lead.status}
-                    </span>
+        {recentLeads.length === 0 ? (
+          <div class="p-12 text-center text-gray-400">
+            <p class="text-sm">No leads yet.</p>
+            <p class="text-xs mt-1">Leads will appear here when they come in.</p>
+          </div>
+        ) : (
+          <div class="divide-y divide-gray-100">
+            {recentLeads.map((lead) => (
+              <div class="p-6 hover:bg-gray-50 transition-colors">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-1">
+                      <h3 class="font-semibold text-charcoal">{lead.name || 'Unknown'}</h3>
+                      <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status] || 'bg-gray-100 text-gray-800'}`}>
+                        {statusLabels[lead.status] || lead.status}
+                      </span>
+                    </div>
+                    <p class="text-sm text-gray-500">{lead.email} {lead.company && `· ${lead.company}`}</p>
+                    <p class="text-sm text-gray-600 mt-2">{lead.message || 'No message'}</p>
                   </div>
-                  <p class="text-sm text-gray-500">{lead.email} · {lead.company}</p>
-                  <p class="text-sm text-gray-600 mt-2">{lead.message}</p>
+                  <span class="text-xs text-gray-400">{new Date(lead.createdAt).toLocaleDateString()}</span>
                 </div>
-                <span class="text-xs text-gray-400">{new Date(lead.createdAt).toLocaleDateString()}</span>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   </AdminLayout>

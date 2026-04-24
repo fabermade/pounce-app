@@ -2,17 +2,40 @@
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
-// Mock leads data
-const leads = [
-  { id: '1', name: 'Sarah Chen', email: 'sarah@acme.com', company: 'Acme Inc', status: 'new', message: 'Interested in your AI team services', createdAt: '2024-01-15T10:30:00Z' },
-  { id: '2', name: 'Mike Ross', email: 'mike@startup.io', company: 'Startup.io', status: 'contacted', message: 'Looking for web development help', createdAt: '2024-01-15T09:15:00Z' },
-  { id: '3', name: 'Emma Wilson', email: 'emma@tech.co', company: 'Tech Co', status: 'scheduled', message: 'Booked a call for tomorrow', createdAt: '2024-01-14T16:45:00Z' },
-  { id: '4', name: 'James Lee', email: 'james@design.studio', company: 'Design Studio', status: 'customer_waiting', message: 'Can you provide more details?', createdAt: '2024-01-14T14:20:00Z' },
-  { id: '5', name: 'Anna Park', email: 'anna@consulting.com', company: 'Consulting LLC', status: 'escalated', message: 'Urgent: Need immediate response', createdAt: '2024-01-13T11:00:00Z' },
-  { id: '6', name: 'David Kim', email: 'david@enterprise.com', company: 'Enterprise Corp', status: 'closed_won', message: 'Signed contract for AI team', createdAt: '2024-01-10T08:30:00Z' },
-  { id: '7', name: 'Lisa Wang', email: 'lisa@smallbiz.com', company: 'Small Biz', status: 'closed_lost', message: 'Budget constraints, maybe next quarter', createdAt: '2024-01-08T13:15:00Z' },
-  { id: '8', name: 'Tom Brown', email: 'tom@agency.com', company: 'Creative Agency', status: 'opted_out', message: 'Unsubscribed from emails', createdAt: '2024-01-05T16:00:00Z' },
-];
+// Fetch leads from API
+let leadsData: {
+  leads: Array<{
+    id: string;
+    name: string | null;
+    email: string;
+    company: string | null;
+    status: string;
+    source: string;
+    message: string | null;
+    createdAt: Date;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+} = { leads: [], pagination: { page: 1, limit: 25, total: 0, totalPages: 0 } };
+
+let error: string | null = null;
+
+try {
+  const url = new URL('/api/admin/leads', Astro.url.origin);
+  const response = await fetch(url.toString());
+  if (response.ok) {
+    leadsData = await response.json();
+  } else {
+    const errData = await response.json().catch(() => ({ error: 'Failed to fetch leads' }));
+    error = errData.error || `Error ${response.status}`;
+  }
+} catch (e) {
+  error = 'Network error. Please try again.';
+}
 
 const statusFilters = [
   { value: 'all', label: 'All Leads' },
@@ -57,23 +80,29 @@ const statusLabels: Record<string, string> = {
         <p class="text-gray-500">Manage and track your lead pipeline</p>
       </div>
 
+      <!-- Error State -->
+      {error && (
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
       <!-- Filters -->
       <div class="flex flex-wrap gap-2 mb-6">
         {statusFilters.map((filter) => (
-          <button
+          <a
+            href={filter.value === 'all' ? '/admin/leads' : `/admin/leads?status=${filter.value}`}
             class={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter.value === 'all'
+              (Astro.url.searchParams.get('status') || 'all') === filter.value
                 ? 'bg-charcoal text-white'
                 : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
             }`}
           >
             {filter.label}
-          </button>
+          </a>
         ))}
       </div>
 
-      <!-- BOLT: Need GET /api/admin/leads with filters -->
-      
       <!-- Leads Table -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
@@ -88,17 +117,27 @@ const statusLabels: Record<string, string> = {
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-              {leads.map((lead) => (
+              {leadsData.leads.length === 0 && !error && (
+                <tr>
+                  <td colspan="5" class="py-12 text-center">
+                    <div class="text-gray-400">
+                      <p class="text-sm mb-2">No leads yet.</p>
+                      <p class="text-xs">Leads will appear here when they come in.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {leadsData.leads.map((lead) => (
                 <tr class="hover:bg-gray-50 transition-colors">
                   <td class="py-4 px-6">
                     <div class="flex items-center gap-3">
                       <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                        {lead.name.charAt(0)}
+                        {(lead.name || lead.email).charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p class="font-medium text-charcoal">{lead.name}</p>
+                        <p class="font-medium text-charcoal">{lead.name || 'Unknown'}</p>
                         <p class="text-sm text-gray-500">{lead.email}</p>
-                        <p class="text-sm text-gray-400">{lead.company}</p>
+                        {lead.company && <p class="text-sm text-gray-400">{lead.company}</p>}
                       </div>
                     </div>
                   </td>
@@ -108,7 +147,7 @@ const statusLabels: Record<string, string> = {
                     </span>
                   </td>
                   <td class="py-4 px-6">
-                    <p class="text-sm text-gray-600 max-w-xs truncate">{lead.message}</p>
+                    <p class="text-sm text-gray-600 max-w-xs truncate">{lead.message || 'No message'}</p>
                   </td>
                   <td class="py-4 px-6">
                     <span class="text-sm text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</span>
@@ -116,7 +155,7 @@ const statusLabels: Record<string, string> = {
                   <td class="py-4 px-6 text-right">
                     <div class="flex items-center justify-end gap-2">
                       <a
-                        href={`/admin/conversations?id=${lead.id}`}
+                        href={`/admin/conversations?leadId=${lead.id}`}
                         class="text-sm text-pounce-orange hover:text-pounce-orange-dark font-medium"
                       >
                         View
@@ -128,6 +167,33 @@ const statusLabels: Record<string, string> = {
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination -->
+        {leadsData.pagination.totalPages > 1 && (
+          <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+            <span class="text-sm text-gray-500">
+              Page {leadsData.pagination.page} of {leadsData.pagination.totalPages}
+            </span>
+            <div class="flex gap-2">
+              {leadsData.pagination.page > 1 && (
+                <a
+                  href={`/admin/leads?page=${leadsData.pagination.page - 1}`}
+                  class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Previous
+                </a>
+              )}
+              {leadsData.pagination.page < leadsData.pagination.totalPages && (
+                <a
+                  href={`/admin/leads?page=${leadsData.pagination.page + 1}`}
+                  class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Next
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   </AdminLayout>

@@ -433,60 +433,127 @@ true-leads/
 ├── src/
 │   ├── pages/
 │   │   ├── api/
-│   │   │   ├── inbound.ts        # Lead intake endpoint
+│   │   │   ├── inbound.ts            # Lead intake + response pipeline trigger
+│   │   │   ├── unsubscribe.ts        # One-click unsubscribe (CAN-SPAM)
 │   │   │   ├── webhook/
-│   │   │   │   ├── resend.ts      # Email reply webhook
-│   │   │   │   └── custom.ts     # Generic webhook
+│   │   │   │   └── resend.ts          # Email reply webhook (TODO)
 │   │   │   └── admin/
-│   │   │       ├── leads.ts
-│   │   │       ├── config.ts
-│   │   │       └── analytics.ts
-│   │   ├── admin/                 # Dashboard pages
-│   │   │   ├── index.astro
-│   │   │   ├── leads.astro
-│   │   │   ├── conversations.astro
-│   │   │   └── settings.astro
-│   │   └── book.astro             # Booking page (v1: Cal embed)
+│   │   │       ├── leads/
+│   │   │       │   ├── index.ts       # GET leads (filterable, paginated)
+│   │   │       │   └── [id].ts        # GET single, PATCH with status validation
+│   │   │       ├── conversations/
+│   │   │       │   ├── index.ts       # GET conversations with messages
+│   │   │       │   ├── [id].ts        # GET single conversation
+│   │   │       │   └── [id]/reply.ts  # POST human reply (takeover)
+│   │   │       ├── setup/
+│   │   │       │   ├── index.ts       # POST first-run setup wizard
+│   │   │       │   └── status.ts      # GET setup completion status
+│   │   │       ├── config.ts         # GET/PATCH business config (9 sections)
+│   │   │       └── analytics.ts      # GET dashboard stats
+│   │   ├── admin/                   # Dashboard pages (Pip)
+│   │   │   ├── index.astro           # Dashboard home
+│   │   │   ├── leads.astro           # Lead pipeline view
+│   │   │   ├── conversations.astro   # Conversation threads
+│   │   │   ├── analytics.astro      # Response rates, booking rates
+│   │   │   ├── settings.astro       # Business config (9 sections)
+│   │   │   └── book.astro           # Cal.com booking embed
+│   │   └── book.astro              # Public booking page
 │   ├── lib/
 │   │   ├── providers/
 │   │   │   ├── llm/
-│   │   │   │   ├── base.ts        # LLMProvider interface
-│   │   │   │   ├── openai.ts
-│   │   │   │   ├── anthropic.ts
-│   │   │   │   └── ollama.ts
+│   │   │   │   ├── base.ts           # LLMProvider interface + async factory
+│   │   │   │   ├── openai.ts         # GPT-4o, GPT-4o-mini
+│   │   │   │   ├── anthropic.ts      # Claude 3 Haiku
+│   │   │   │   └── ollama.ts         # Self-hosted LLM
 │   │   │   └── email/
-│   │   │       ├── base.ts        # EmailProvider interface
-│   │   │       ├── resend.ts
-│   │   │       ├── sendgrid.ts
-│   │   │       └── mailgun.ts
+│   │   │       ├── base.ts          # EmailProvider interface + async factory
+│   │   │       ├── resend.ts        # Resend (default)
+│   │   │       ├── sendgrid.ts      # SendGrid
+│   │   │       └── mailgun.ts       # Mailgun
 │   │   ├── db/
-│   │   │   ├── schema.ts          # Drizzle schema
-│   │   │   └── migrations/
+│   │   │   ├── schema.ts           # Drizzle schema (6 tables)
+│   │   │   ├── client.ts            # Lazy Neon connection (import.meta.env)
+│   │   │   └── index.ts            # Re-exports + Proxy lazy db
 │   │   ├── prompts/
-│   │   │   ├── system.ts          # System prompt builder
-│   │   │   └── templates/         # Response templates
+│   │   │   └── system.ts            # System prompt builder from config
 │   │   └── core/
-│   │       ├── lead-parser.ts     # Normalize inbound data
-│   │       ├── conversation.ts    # Conversation manager
-│   │       └── booking.ts          # Booking link generator
-│   └── components/                # Admin dashboard UI
-├── db/                            # SQLite or Neon PostgreSQL
-├── tests/
-├── astro.config.mjs
+│   │       ├── lead-parser.ts      # Normalize inbound data
+│   │       ├── conversation.ts      # Conversation manager + 10-msg AI cap
+│   │       ├── response-pipeline.ts # The Pounce engine (config→LLM→email→status)
+│   │       ├── pipeline.ts          # Status transitions + event logging
+│   │       └── booking.ts           # Booking CTA logic
+│   ├── components/admin/          # Admin dashboard UI (Pip)
+│   │   └── AdminLayout.tsx        # React island layout
+│   ├── layouts/
+│   │   └── AdminPage.astro        # Admin page layout (Pip)
+│   └── styles/
+│       └── global.css             # Tailwind globals (Pip)
+├── docs/
+│   ├── PLAN.md                   # This file
+│   ├── PIP-HANDOFF.md            # API shapes + handoff protocol
+│   └── BOLT-BRIEF.md             # Backend build brief
 ├── drizzle.config.ts
+├── astro.config.mjs             # @astrojs/node adapter, server output
+├── tsconfig.json                # Strict mode, noUncheckedIndexedAccess
 └── package.json
 ```
 
 ---
 
-## Next Steps
+## Build Progress
 
-1. **Ty creates `hamburgers/true-leads` repo on GitHub**
-2. **Patch generates deploy key and clones**
-3. **Bolt builds MVP** (per this plan, starting with database + API routes)
-4. **Pip designs admin dashboard UI** (leads pipeline, config screens)
-5. **Patch sets up hosting** (Vercel project, Neon database, env vars)
-6. **Migrate Faber Made** as first customer
+### ✅ Done
+- [x] Repo created: `hamburgers/TrueLeads`
+- [x] Astro project scaffolded (TypeScript strict, `output: 'server'`, `@astrojs/node` adapter)
+- [x] Database schema — 6 tables pushed to Neon PostgreSQL
+  - leads, conversations, messages, business_config, events, daily_send_counts
+- [x] Lazy DB client — `import.meta.env` for Astro/Vite, Proxy pattern for deferred connection
+- [x] Lead intake — `POST /api/inbound` (form, email, webhook, API sources)
+- [x] LLM providers — OpenAI, Anthropic, Ollama (swappable interface, async factory)
+- [x] Email providers — Resend, SendGrid, Mailgun (swappable interface, async factory)
+- [x] Core modules — lead-parser, conversation manager, pipeline (status machine), booking, system prompt builder
+- [x] **Response pipeline** — The Pounce engine: config → LLM call → email send → message save → status update
+  - 10-msg AI cap per conversation
+  - Daily send cap enforcement
+  - Escalation trigger scanning
+  - Booking CTA timing
+  - Mandatory unsubscribe link on every email
+  - AI disclosure in first response
+- [x] Admin API routes (all end-to-end tested):
+  - `GET /api/admin/leads` — filterable (status, source, search), paginated
+  - `GET /api/admin/leads/[id]` — single lead
+  - `PATCH /api/admin/leads/[id]` — update lead, status transitions validated
+  - `GET /api/admin/conversations` — with messages and lead info
+  - `GET /api/admin/conversations/[id]` — full message thread
+  - `POST /api/admin/conversations/[id]/reply` — human takeover
+  - `GET /api/admin/config` — all 9 sections with defaults
+  - `PATCH /api/admin/config` — deep merge objects, replace arrays
+  - `GET /api/admin/analytics` — stats, weekly data, status breakdown, recent activity
+- [x] Setup wizard endpoints:
+  - `POST /api/admin/setup` — first-run config (business, providers, tone, booking)
+  - `GET /api/admin/setup/status` — `{ completed: boolean }` for frontend routing
+- [x] Unsubscribe — `GET /api/unsubscribe?email=...` (CAN-SPAM compliant)
+- [x] Admin dashboard UI (Pip built):
+  - `/admin`, `/admin/leads`, `/admin/conversations`, `/admin/analytics`, `/admin/settings`, `/admin/book`
+- [x] Provider config is fully dynamic — `env:KEY` references resolved at runtime
+  - Generic env vars: `LLM_API_KEY`, `EMAIL_API_KEY`
+  - Adding new providers = config change + impl file, zero pipeline code changes
+
+### 🔄 In Progress
+- [ ] End-to-end test with real API keys (needs `LLM_API_KEY` + `EMAIL_API_KEY` in .env)
+- [ ] Wire Pip's admin UI to real API routes (replace mock data with fetch calls)
+
+### 📋 Next
+- [ ] License client integration (`trueleads-license`)
+- [ ] Auth (admin dashboard login)
+- [ ] Follow-up cadence (auto nudge after X days)
+- [ ] After-hours detection
+- [ ] Webhook for Resend email replies (`POST /api/webhook/resend`)
+- [ ] Content scanning (PII, phishing patterns)
+- [ ] Human review queue (AI drafts, human approves)
+
+### 🧊 Blocked
+- None currently
 
 ---
 
@@ -586,11 +653,21 @@ The self-host license agreement and managed service agreement both include:
 
 ---
 
+## Resolved Decisions
+
+1. **Database:** PostgreSQL (Neon) — pushed and live. SQLite deferred to self-host v2.
+2. **Auth:** TBD — not blocking MVP, admin is behind auth middleware when needed.
+3. **Admin framework:** Same Astro project — simpler, working well.
+4. **LLM costs:** Customer's own key (self-host) or included in subscription (managed). Generic `LLM_API_KEY` env var.
+5. **Multi-tenancy:** Single-tenant for MVP. Multi-tenancy in v2.
+6. **Agent vs standard:** Standard LLM pipeline is default. Agent hooks exposed via `agent` config section (webhook URL).
+7. **Provider config:** Fully dynamic `env:KEY` references. No hardcoded provider→env mapping. Generic `LLM_API_KEY` and `EMAIL_API_KEY` as defaults.
+8. **Setup wizard:** Web-based first-run installer (`POST /api/admin/setup`). Seeds config + tells user to set env vars.
+9. **Server adapter:** `@astrojs/node` in standalone mode for production deploys.
+
 ## Open Questions
 
-1. **Database:** PostgreSQL (Neon free tier) vs SQLite (simpler for self-host)? Recommend Postgres for managed, SQLite for self-host option.
-2. **Auth:** Lucia (lighter) or NextAuth (more providers)? Both work with Astro.
-3. **Admin framework:** Separate dashboard app or same Astro project? Same project is simpler for MVP.
-4. **LLM costs:** Who eats the LLM API costs? Customer's own key (self-host) or included in subscription (managed)?
-5. **Multi-tenancy:** Single database with tenant isolation, or separate databases per customer? Start single-tenant, add multi-tenancy in v2.
-6. **Agent vs standard:** Default to standard LLM pipeline, but expose agent hooks from day one so it's not a retrofit.
+1. **Email inbox providers:** Outlook/Microsoft Graph uses OAuth2, not API keys. How to handle?
+2. **Multi-tenancy design:** Tenant isolation strategy when we get there.
+3. **Webhook auth:** How to verify inbound webhooks are legitimate (HMAC? shared secret?).
+4. **Rate limiting strategy:** Per-IP? Per-business? Token bucket?

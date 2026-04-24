@@ -535,6 +535,50 @@ When `agent.mode` is `"none"` (default), the standard LLM pipeline handles every
 
 ---
 
+## Trust & Safety (Non-Negotiable)
+
+True Leads is a powerful tool for automating outbound communication. Without safeguards, it can be weaponized for spam, phishing, harassment, or disinformation. These measures are mandatory, not optional.
+
+### Anti-Abuse Rules
+
+1. **No cold outreach.** True Leads responds to inbound leads only. Every conversation starts with the lead contacting the business — never the other way around. The system must not support unsolicited outreach campaigns.
+2. **Opt-in required.** Every lead must have explicitly submitted a form, sent an email, or taken a comparable opt-in action. No purchased lists, no scraped contacts.
+3. **Unsubscribe on every email.** Every outbound email includes a one-click unsubscribe link. Clicking it marks the lead as `opted_out` and the system never emails them again.
+4. **CAN-SPAM compliance.** Physical mailing address in footer, clear sender identification, no deceptive subject lines.
+5. **Rate limiting per lead.** Max 1 email per lead per 24 hours. Follow-up cadence caps at 3 attempts total. After 3 unanswered emails, the lead goes cold — no more messages.
+6. **No impersonation.** The AI identifies itself as an AI assistant for the company. Never pretends to be a human. Never uses fake personas.
+7. **No disinformation.** The system must not generate or distribute false information. If the knowledge base doesn't contain an answer, the AI says "I don't know" and offers to connect a human.
+8. **Escalation triggers are mandatory.** Certain topics always escalate to a human: legal threats, refund demands, discrimination complaints, safety concerns, requests to be removed from all contact.
+
+### Technical Enforcement
+
+- **Conversation cap:** No more than 10 AI messages per conversation before requiring human review.
+- **Daily send cap:** No more than 50 outbound emails per day per business in Starter tier. Business and Enterprise tiers have higher limits but still capped.
+- **Content scanning:** Outbound messages are scanned for common abuse patterns (phishing links, misleading claims, threats) before sending.
+- **Domain reputation:** New accounts start in a probation period (7 days) with reduced send limits. Accounts with high unsubscribe rates (>5%) are flagged for review.
+- **Reporting:** Any recipient can report abuse via the unsubscribe page. Reports are logged and trigger manual review.
+
+### Prohibited Use Cases
+
+True Leads must not be used for:
+- Unsolicited bulk email (spam)
+- Phishing or social engineering
+- Political campaigning without disclosure
+- Health/medical advice without proper disclaimers
+- Financial advice without proper disclaimers
+- Targeted harassment
+- Disinformation campaigns
+
+### Terms of Service
+
+The self-host license agreement and managed service agreement both include:
+- Acceptable use policy referencing all above rules
+- Right to revoke license for violations
+- Indemnification clause — customer is responsible for how they use the tool
+- Audit right — we can review usage patterns for compliance
+
+---
+
 ## Open Questions
 
 1. **Database:** PostgreSQL (Neon free tier) vs SQLite (simpler for self-host)? Recommend Postgres for managed, SQLite for self-host option.

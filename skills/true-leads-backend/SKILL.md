@@ -342,6 +342,11 @@ When Pip needs an API endpoint that doesn't exist yet:
 12. **After-hours awareness.** If a lead arrives outside business hours, respond with appropriate tone or queue for next business hours, per config.
 13. **Follow-up cadence.** If lead doesn't reply, auto-nudge after configurable days. Max 3 nudges before marking cold.
 14. **Multi-language detection.** Detect lead's language, respond in kind if supported. Configurable: auto-detect or fixed language.
+15. **No cold outreach.** Inbound leads only. Every conversation starts with the lead contacting us. Never unsolicited.
+16. **AI discloses itself.** Every first response identifies the assistant as AI working for the company. Never impersonate a human.
+17. **Conversation cap.** Max 10 AI messages per conversation before requiring human review. Prevents endless AI loops.
+18. **Daily send cap.** Enforced per tier. Starter: 50/day, Business: 500/day, Enterprise: configurable. Prevents spam volume.
+19. **Content scan before send.** Outbound messages scanned for phishing patterns, misleading claims, and abuse triggers before sending.
 
 ## File Structure
 

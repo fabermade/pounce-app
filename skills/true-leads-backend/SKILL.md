@@ -163,13 +163,36 @@ events (
 
 ## Business Config Structure
 
+This is the **Source of Truth** — everything the AI uses to represent a company. Configured via the Settings page in the admin dashboard.
+
 ```json
 {
   "business": {
     "name": "string",
     "tagline": "string",
-    "tone": "string",
-    "replyStyle": "string"
+    "website": "string",
+    "description": "string"
+  },
+  "tone": {
+    "style": "professional|casual|friendly|formal|witty",
+    "instructions": "string",
+    "greeting": "string",
+    "signoff": "string",
+    "do": ["use short sentences", "be direct"],
+    "dont": ["use jargon", "be overly formal", "use exclamation marks more than once per email"]
+  },
+  "knowledge": {
+    "links": [
+      { "url": "https://company.com/about", "label": "About Us", "description": "Company history and team" },
+      { "url": "https://company.com/pricing", "label": "Pricing Page", "description": "Current pricing tiers" },
+      { "url": "https://company.com/services", "label": "Services", "description": "Service descriptions and deliverables" },
+      { "url": "https://docs.company.com", "label": "Documentation", "description": "Technical docs and API reference" }
+    ],
+    "texts": [
+      { "title": "Return Policy", "content": "We offer full refunds within 30 days..." },
+      { "title": "Service Process", "content": "1. Discovery call 2. Proposal 3. Build 4. Launch" },
+      { "title": "Team Background", "content": "Founded in 2024 by..." }
+    ]
   },
   "services": [
     { "name": "string", "description": "string", "price": "string" }
@@ -191,31 +214,70 @@ events (
     "llm": { "provider": "openai", "model": "gpt-4o-mini", "apiKey": "env:OPENAI_API_KEY" },
     "email": { "provider": "resend", "apiKey": "env:RESEND_API_KEY", "fromEmail": "hello@company.com" },
     "inbox": { "provider": "resend_webhook" }
+  },
+  "agent": {
+    "enabled": false,
+    "mode": "none",
+    "webhookUrl": "",
+    "webhookToken": ""
   }
 }
 ```
 
+### Settings Page Sections
+
+The admin Settings page has these sections:
+
+1. **Business Identity** — Name, tagline, website, description
+2. **Tone & Voice** — Style preset, custom instructions, dos/don'ts, greeting/signoff
+3. **Knowledge Sources** — Links (scraped at send-time or cached) + manual text entries
+4. **Services & Pricing** — What you sell, descriptions, price points
+5. **FAQ** — Common questions with approved answers
+6. **Escalation Rules** — Trigger phrases, who gets notified
+7. **Booking** — Calendar link, CTA text, when to offer booking
+8. **Integrations** — LLM, email, inbox provider settings
+9. **Agent Mode** — Enable/disable, webhook URL, token
+
 `env:KEY` means read from environment variable, never store API keys in the database.
 
-## LLM Prompt Building
+### Prompt Assembly (updated for knowledge sources + tone)
 
 The system prompt is assembled from business config:
 
 ```
 You are the AI assistant for {business.name}. {business.tagline}.
 
-Your tone: {business.tone}
-Your reply style: {business.replyStyle}
+## Your Tone
+Style: {tone.style}
+{tone.instructions}
 
-Services you represent:
+Always:
+{tone.do formatted as list}
+
+Never:
+{tone.dont formatted as list}
+
+Greeting: {tone.greeting}
+Signoff: {tone.signoff}
+
+## Knowledge
+{knowledge.texts formatted as sections}
+
+Reference links (verify these are still current before citing):
+{knowledge.links formatted as list with labels}
+
+## Services
 {services formatted as list}
 
-Frequently asked questions:
+## FAQ
 {faq formatted as Q&A}
 
+## Booking
 When a lead seems interested, offer to book a call:
 {booking.cta} — {booking.url}
+Timing: {booking.timing}
 
+## Escalation
 If the customer mentions any of these topics, stop and notify a human:
 {escalation.triggerPhrases}
 
@@ -224,6 +286,8 @@ Never share internal processes or competitor information.
 ```
 
 Conversation history appended as message array.
+
+**Link fetching:** When `knowledge.links` are configured, the system fetches page content at send-time (or from cache) and includes relevant excerpts in the prompt. This ensures the AI always gives up-to-date answers from the company's own sources.
 
 ## Territory (What You Build)
 

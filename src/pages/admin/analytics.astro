@@ -2,41 +2,77 @@
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
-// Mock analytics data
-const stats = {
-  totalLeads: 156,
-  responseRate: 94,
-  avgResponseTime: '2.3',
-  bookingRate: 32,
-  leadsThisWeek: 23,
-  leadsLastWeek: 18,
+// Fetch analytics from API
+let analyticsData: {
+  stats: {
+    totalLeads: number;
+    responseRate: number;
+    avgResponseTime: string;
+    bookingRate: number;
+    leadsThisWeek: number;
+    leadsLastWeek: number;
+  };
+  weeklyData: Array<{
+    day: string;
+    leads: number;
+    responses: number;
+    bookings: number;
+  }>;
+  statusBreakdown: Array<{
+    status: string;
+    count: number;
+  }>;
+  recentActivity: Array<{
+    action: string;
+    target: string;
+    time: Date;
+  }>;
+} = {
+  stats: { totalLeads: 0, responseRate: 0, avgResponseTime: '0', bookingRate: 0, leadsThisWeek: 0, leadsLastWeek: 0 },
+  weeklyData: [],
+  statusBreakdown: [],
+  recentActivity: [],
 };
 
-const weeklyData = [
-  { day: 'Mon', leads: 4, responses: 4, bookings: 1 },
-  { day: 'Tue', leads: 6, responses: 5, bookings: 2 },
-  { day: 'Wed', leads: 3, responses: 3, bookings: 0 },
-  { day: 'Thu', leads: 5, responses: 5, bookings: 1 },
-  { day: 'Fri', leads: 3, responses: 3, bookings: 2 },
-  { day: 'Sat', leads: 1, responses: 1, bookings: 0 },
-  { day: 'Sun', leads: 1, responses: 1, bookings: 0 },
-];
+let error: string | null = null;
 
-const statusBreakdown = [
-  { status: 'New', count: 12, color: 'bg-blue-500' },
-  { status: 'Contacted', count: 8, color: 'bg-yellow-500' },
-  { status: 'Scheduled', count: 5, color: 'bg-green-500' },
-  { status: 'Closed Won', count: 3, color: 'bg-green-600' },
-  { status: 'Escalated', count: 2, color: 'bg-red-500' },
-];
+try {
+  const response = await fetch(new URL('/api/admin/analytics', Astro.url.origin));
+  if (response.ok) {
+    analyticsData = await response.json();
+  } else {
+    const errData = await response.json().catch(() => ({ error: 'Failed to fetch analytics' }));
+    error = errData.error || `Error ${response.status}`;
+  }
+} catch (e) {
+  error = 'Network error. Please try again.';
+}
 
-const recentActivity = [
-  { action: 'Lead contacted', target: 'sarah@acme.com', time: '2 min ago' },
-  { action: 'Meeting scheduled', target: 'emma@tech.co', time: '15 min ago' },
-  { action: 'Lead escalated', target: 'anna@consulting.com', time: '1 hour ago' },
-  { action: 'Response sent', target: 'mike@startup.io', time: '2 hours ago' },
-  { action: 'Lead closed won', target: 'david@enterprise.com', time: '3 hours ago' },
-];
+const { stats, weeklyData, statusBreakdown, recentActivity } = analyticsData;
+
+const statusColorMap: Record<string, string> = {
+  new: 'bg-blue-500',
+  contacted: 'bg-yellow-500',
+  customer_waiting: 'bg-orange-500',
+  scheduled: 'bg-green-500',
+  closed_won: 'bg-green-600',
+  closed_lost: 'bg-gray-400',
+  escalated: 'bg-red-500',
+  opted_out: 'bg-gray-300',
+};
+
+const statusLabelMap: Record<string, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  customer_waiting: 'Customer Waiting',
+  scheduled: 'Scheduled',
+  closed_won: 'Closed Won',
+  closed_lost: 'Closed Lost',
+  escalated: 'Escalated',
+  opted_out: 'Opted Out',
+};
+
+const maxCount = Math.max(...statusBreakdown.map(s => s.count), 1);
 ---
 
 <AdminPage title="Analytics" currentPath="/admin/analytics">
@@ -48,7 +84,12 @@ const recentActivity = [
         <p class="text-gray-500">Track your lead response performance</p>
       </div>
 
-      <!-- BOLT: Need GET /api/admin/analytics -->
+      <!-- Error State -->
+      {error && (
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -89,65 +130,87 @@ const recentActivity = [
         <!-- Weekly Activity Chart -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 class="text-lg font-semibold font-heading text-charcoal mb-6">Weekly Activity</h2>
-          <div class="space-y-4">
-            {weeklyData.map((day) => (
-              <div class="flex items-center gap-4">
-                <span class="text-sm text-gray-600 w-8">{day.day}</span>
-                <div class="flex-1 flex gap-1">
-                  <div
-                    class="h-6 bg-pounce-orange rounded flex items-center justify-center"
-                    style={`width: ${Math.max((day.leads / 6) * 100, 8)}%`}
-                  >
-                    <span class="text-xs text-white px-2">{day.leads}</span>
+          {weeklyData.length === 0 ? (
+            <div class="py-12 text-center text-gray-400">
+              <p class="text-sm">No activity this week.</p>
+            </div>
+          ) : (
+            <>
+              <div class="space-y-4">
+                {weeklyData.map((day) => (
+                  <div class="flex items-center gap-4">
+                    <span class="text-sm text-gray-600 w-8">{day.day}</span>
+                    <div class="flex-1 flex gap-1">
+                      <div
+                        class="h-6 bg-pounce-orange rounded flex items-center justify-center"
+                        style={`width: ${Math.max((day.leads / 6) * 100, 8)}%`}
+                      >
+                        <span class="text-xs text-white px-2">{day.leads}</span>
+                      </div>
+                    </div>
                   </div>
+                ))}
+              </div>
+              <div class="flex items-center gap-6 mt-4 text-xs text-gray-500">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 bg-pounce-orange rounded"></span>
+                  Leads
                 </div>
               </div>
-            ))}
-          </div>
-          <div class="flex items-center gap-6 mt-4 text-xs text-gray-500">
-            <div class="flex items-center gap-2">
-              <span class="w-3 h-3 bg-pounce-orange rounded"></span>
-              Leads
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         <!-- Status Breakdown -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 class="text-lg font-semibold font-heading text-charcoal mb-6">Pipeline Status</h2>
-          <div class="space-y-4">
-            {statusBreakdown.map((item) => (
-              <div class="flex items-center gap-4">
-                <div class={`w-3 h-3 rounded-full ${item.color}`}></div>
-                <span class="text-sm text-gray-600 flex-1">{item.status}</span>
-                <span class="text-sm font-medium text-charcoal">{item.count}</span>
-                <div class="w-24 bg-gray-100 rounded-full h-2">
-                  <div
-                    class={`h-2 rounded-full ${item.color}`}
-                    style={`width: ${(item.count / 12) * 100}%`}
-                  ></div>
+          {statusBreakdown.length === 0 ? (
+            <div class="py-12 text-center text-gray-400">
+              <p class="text-sm">No data yet.</p>
+            </div>
+          ) : (
+            <div class="space-y-4">
+              {statusBreakdown.map((item) => (
+                <div class="flex items-center gap-4">
+                  <div class={`w-3 h-3 rounded-full ${statusColorMap[item.status] || 'bg-gray-400'}`}></div>
+                  <span class="text-sm text-gray-600 flex-1">{statusLabelMap[item.status] || item.status}</span>
+                  <span class="text-sm font-medium text-charcoal">{item.count}</span>
+                  <div class="w-24 bg-gray-100 rounded-full h-2">
+                    <div
+                      class={`h-2 rounded-full ${statusColorMap[item.status] || 'bg-gray-400'}`}
+                      style={`width: ${(item.count / maxCount) * 100}%`}
+                    ></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <!-- Recent Activity -->
       <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Recent Activity</h2>
-        <div class="space-y-3">
-          {recentActivity.map((activity) => (
-            <div class="flex items-center justify-between py-2">
-              <div class="flex items-center gap-3">
-                <div class="w-2 h-2 bg-pounce-orange rounded-full"></div>
-                <span class="text-sm text-gray-600">{activity.action}</span>
-                <span class="text-sm text-charcoal font-medium">{activity.target}</span>
+        {recentActivity.length === 0 ? (
+          <div class="py-8 text-center text-gray-400">
+            <p class="text-sm">No recent activity.</p>
+          </div>
+        ) : (
+          <div class="space-y-3">
+            {recentActivity.map((activity) => (
+              <div class="flex items-center justify-between py-2">
+                <div class="flex items-center gap-3">
+                  <div class="w-2 h-2 bg-pounce-orange rounded-full"></div>
+                  <span class="text-sm text-gray-600">{activity.action}</span>
+                  <span class="text-sm text-charcoal font-medium">{activity.target}</span>
+                </div>
+                <span class="text-xs text-gray-400">
+                  {new Date(activity.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <span class="text-xs text-gray-400">{activity.time}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   </AdminLayout>

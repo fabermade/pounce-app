@@ -116,10 +116,10 @@ npm run dev  # → http://localhost:4321
     "booking": { "url": "", "cta": "", "timing": "after_second_exchange" },
     "providers": {
       "llm": "openai",
-      "llmApiKey": "env:OPENAI_API_KEY",
+      "llmApiKey": "env:LLM_API_KEY",
       "llmModel": "",
       "email": "resend",
-      "emailApiKey": "env:RESEND_API_KEY",
+      "emailApiKey": "env:EMAIL_API_KEY",
       "fromEmail": "hello@pouncefirst.com",
       "inbox": ""
     },

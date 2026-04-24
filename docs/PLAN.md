@@ -288,22 +288,33 @@ events (
 - Booking CTA in responses
 - Admin dashboard (leads, conversations, config)
 - Cal.com booking link
+- Unsubscribe/opt-out on every email
+- Human takeover (pause AI, reply manually, release)
 
-**What's out (v2+):**
-- Multiple LLM/email provider switching (architecture supports it, UI comes later)
-- CRM integrations (HubSpot, Salesforce, Pipedrive, Zoho)
-- LinkedIn enrichment
-- Built-in calendar
-- Human review queue
-- Analytics dashboard
-- Self-host installer
+**What's in (v1.5 — quick wins):**
+- Follow-up cadence (auto nudge after X days, configurable)
+- After-hours detection (queue or different tone outside business hours)
+- Lead scoring (auto-prioritize based on urgency/budget/company signals)
+- Email templates (quick send from admin dashboard)
+- Data export (CSV for leads + conversations)
+- Attachment handling (receive, virus scan, summarize for AI context)
+
+**What's in (v2):**
+- Multiple LLM/email/inbox provider switching
+- Multi-language detection and response
+- Link and file vulnerability scanning
+- Human review queue (AI drafts, human approves before send)
+- Analytics dashboard (response time, reply rate, booking conversion)
+- Knowledge link caching (scrape + cache, refresh on schedule)
 
 **What's out (v3+):**
+- CRM integrations (HubSpot, Salesforce, Pipedrive, Zoho)
 - Two-way CRM sync (leads, contacts, deals, activities)
 - CRM pipeline status mirroring (lead status → CRM stage)
 - Custom CRM field mapping
 - Webhook triggers on status changes (for Zapier/Make workflows)
 - Slack/Teams notifications
+- Self-host installer (Docker Compose + docs)
 
 ---
 

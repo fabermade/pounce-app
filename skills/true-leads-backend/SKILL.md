@@ -155,11 +155,22 @@ events (
 - `GET /api/admin/leads` — List leads with filters (status, date, source)
 - `GET /api/admin/leads/:id` — Lead detail with conversation
 - `PATCH /api/admin/leads/:id` — Update lead status (manual override)
+- `PATCH /api/admin/leads/:id/takeover` — Human takes over conversation (pause AI)
+- `PATCH /api/admin/leads/:id/release` — Release conversation back to AI
+- `POST /api/admin/leads/:id/unsubscribe` — Mark lead as opted out
 - `GET /api/admin/conversations/:id` — Full conversation thread
 - `POST /api/admin/conversations/:id/reply` — Human sends reply (bypass AI)
+- `POST /api/admin/conversations/:id/template` — Send from email template
 - `GET /api/admin/config` — Get all business config
 - `PATCH /api/admin/config` — Update business config
 - `GET /api/admin/analytics` — Response rates, booking rates, response times
+- `GET /api/admin/export/leads` — CSV export of leads
+- `GET /api/admin/export/conversations` — CSV export of conversations
+
+### Agent Hooks (optional)
+- `POST /api/hooks/lead-created` — Webhook fires when new lead arrives
+- `GET /api/admin/conversations/:id/context` — Full context for agent (config + history)
+- `POST /hooks/wake` — OpenClaw-compatible wake endpoint
 
 ## Business Config Structure
 
@@ -325,6 +336,12 @@ When Pip needs an API endpoint that doesn't exist yet:
 6. **Type safety everywhere.** Drizzle generates types from schema. Use them. No `any`.
 7. **Test provider modules.** Mock the external API, test the interface compliance.
 8. **Agent hooks from day one.** Even if agent mode is optional, expose webhook triggers, context endpoints, and action APIs so an agent can plug in later without a retrofit.
+9. **Unsubscribe on every outbound email.** Non-negotiable. Legal requirement.
+10. **Scan all inbound files and links.** Virus scan attachments (ClamAV or cloud API), URL reputation check on links. Never pass unscanned content to LLM or store unscanned files.
+11. **Human takeover is a toggle.** When active, AI stops auto-responding for that conversation. Clear UI indicator.
+12. **After-hours awareness.** If a lead arrives outside business hours, respond with appropriate tone or queue for next business hours, per config.
+13. **Follow-up cadence.** If lead doesn't reply, auto-nudge after configurable days. Max 3 nudges before marking cold.
+14. **Multi-language detection.** Detect lead's language, respond in kind if supported. Configurable: auto-detect or fixed language.
 
 ## File Structure
 
@@ -358,6 +375,10 @@ src/
 │   │       ├── outlook.ts
 │   │       ├── resend-webhook.ts
 │   │       └── imap.ts
+│   ├── security/
+│   │   ├── scanner.ts           # File + link scanning coordinator
+│   │   ├── file-scanner.ts       # Virus scan attachments (ClamAV or cloud API)
+│   │   └── link-scanner.ts       # URL reputation check (Google Safe Browsing API)
 │   ├── db/
 │   │   ├── schema.ts
 │   │   ├── client.ts

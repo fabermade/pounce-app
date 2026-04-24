@@ -25,20 +25,26 @@ export interface LLMProvider {
 
 /**
  * Factory: create an LLM provider from business config.
- * Config value looks like: { "provider": "openai", "model": "gpt-4o-mini", "apiKey": "env:OPENAI_API_KEY" }
+ * Uses dynamic import() for ESM compatibility (Astro/Vite).
  */
-export function createLLMProvider(config: {
+export async function createLLMProvider(config: {
   provider: string;
   model?: string;
-  apiKey: string; // Already resolved from env:KEY
-}): LLMProvider {
+  apiKey: string;
+}): Promise<LLMProvider> {
   switch (config.provider) {
-    case 'openai':
-      return new (require('./openai.js').OpenAIProvider)(config.apiKey, config.model);
-    case 'anthropic':
-      return new (require('./anthropic.js').AnthropicProvider)(config.apiKey, config.model);
-    case 'ollama':
-      return new (require('./ollama.js').OllamaProvider)(config.model);
+    case 'openai': {
+      const { OpenAIProvider } = await import('./openai.js');
+      return new OpenAIProvider(config.apiKey, config.model);
+    }
+    case 'anthropic': {
+      const { AnthropicProvider } = await import('./anthropic.js');
+      return new AnthropicProvider(config.apiKey, config.model);
+    }
+    case 'ollama': {
+      const { OllamaProvider } = await import('./ollama.js');
+      return new OllamaProvider(config.model);
+    }
     default:
       throw new Error(`Unknown LLM provider: ${config.provider}`);
   }

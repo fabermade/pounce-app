@@ -29,20 +29,26 @@ export interface EmailProvider {
 
 /**
  * Factory: create an email provider from business config.
- * Config value looks like: { "provider": "resend", "apiKey": "env:RESEND_API_KEY", "fromEmail": "hello@company.com" }
+ * Uses dynamic import() for ESM compatibility (Astro/Vite).
  */
-export function createEmailProvider(config: {
+export async function createEmailProvider(config: {
   provider: string;
-  apiKey: string; // Already resolved from env:KEY
+  apiKey: string;
   fromEmail?: string;
-}): EmailProvider {
+}): Promise<EmailProvider> {
   switch (config.provider) {
-    case 'resend':
-      return new (require('./resend.js').ResendProvider)(config.apiKey, config.fromEmail);
-    case 'sendgrid':
-      return new (require('./sendgrid.js').SendGridProvider)(config.apiKey, config.fromEmail);
-    case 'mailgun':
-      return new (require('./mailgun.js').MailgunProvider)(config.apiKey, config.fromEmail);
+    case 'resend': {
+      const { ResendProvider } = await import('./resend.js');
+      return new ResendProvider(config.apiKey, config.fromEmail);
+    }
+    case 'sendgrid': {
+      const { SendGridProvider } = await import('./sendgrid.js');
+      return new SendGridProvider(config.apiKey, config.fromEmail);
+    }
+    case 'mailgun': {
+      const { MailgunProvider } = await import('./mailgun.js');
+      return new MailgunProvider(config.apiKey, config.fromEmail);
+    }
     default:
       throw new Error(`Unknown email provider: ${config.provider}`);
   }

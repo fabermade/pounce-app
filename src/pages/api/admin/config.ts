@@ -47,7 +47,7 @@ export const GET: APIRoute = async () => {
       faq: [],
       escalation: { triggerPhrases: [], notifyEmail: '' },
       booking: { url: '', cta: '', timing: 'after_second_exchange' },
-      providers: { llm: 'openai', email: 'resend', inbox: '' },
+      providers: { llm: 'openai', llmApiKey: 'env:OPENAI_API_KEY', llmModel: '', email: 'resend', emailApiKey: 'env:RESEND_API_KEY', fromEmail: 'hello@pouncefirst.com', inbox: '' },
       agent: { enabled: false, webhookUrl: '' },
     };
 

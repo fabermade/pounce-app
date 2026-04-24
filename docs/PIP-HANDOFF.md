@@ -27,34 +27,36 @@ npm run dev  # → http://localhost:4321
 - **events** — audit log for status changes, emails, bookings
 - **daily_send_counts** — rate limiting tracker
 
-### API Routes (Working Now)
-- `POST /api/inbound` — Lead intake (form, webhook, email)
+### API Routes (All Working, End-to-End Tested)
 
-### Provider Interfaces (Built, not yet called from routes)
-- **LLM:** OpenAI, Anthropic, Ollama
-- **Email:** Resend, SendGrid, Mailgun
+**Inbound:**
+- `POST /api/inbound` — Lead intake + AI response pipeline (form, webhook, email)
 
-### Core Modules (Built)
+**Admin:**
+- `GET /api/admin/leads` — List leads with filters (status, source, search, pagination)
+- `GET /api/admin/leads/[id]` — Single lead detail
+- `PATCH /api/admin/leads/[id]` — Update lead, status transitions validated
+- `GET /api/admin/conversations` — List conversations with messages and lead info
+- `GET /api/admin/conversations/[id]` — Full message thread
+- `POST /api/admin/conversations/[id]/reply` — Human takeover
+- `GET /api/admin/config` — All 9 business config sections (with defaults)
+- `PATCH /api/admin/config` — Update config (deep merge objects, replace arrays)
+- `GET /api/admin/analytics` — Dashboard stats, weekly data, status breakdown, recent activity
+
+**Unsubscribe:**
+- `GET /api/unsubscribe?email=...` — One-click unsubscribe (CAN-SPAM compliant)
+
+### Core Modules
 - `src/lib/core/lead-parser.ts` — Normalize inbound payloads
-- `src/lib/core/conversation.ts` — Conversation state + message history
+- `src/lib/core/conversation.ts` — Conversation state + message history + 10-msg AI cap
 - `src/lib/core/pipeline.ts` — Status transitions + event logging
 - `src/lib/core/booking.ts` — Booking CTA logic
+- `src/lib/core/response-pipeline.ts` — **The Pounce engine** (config → LLM → email → message → status)
 - `src/lib/prompts/system.ts` — System prompt builder from business config
 
-## What Pip Builds
-
-### Admin Dashboard Pages (`src/pages/admin/`)
-- `/admin` — Dashboard home (pipeline overview, recent leads)
-- `/admin/leads` — Lead pipeline view (new → contacted → scheduled → closed)
-- `/admin/conversations` — Conversation threads
-- `/admin/settings` — Business config (9 sections)
-- `/admin/analytics` — Response rates, booking rates
-
-### UI Components (`src/components/`)
-- Lead cards, conversation thread, pipeline board, config forms, etc.
-
-### Booking Page (`src/pages/book.astro`)
-- Cal.com embed (v1)
+### Provider Interfaces (Swappable, No Hardcoded Providers)
+- **LLM:** OpenAI, Anthropic, Ollama — config selects which, `llmApiKey` stores the env reference
+- **Email:** Resend, SendGrid, Mailgun — config selects which, `emailApiKey` stores the env reference
 
 ## API Response Shapes (Mock Against These)
 
@@ -75,17 +77,15 @@ npm run dev  # → http://localhost:4321
 }
 ```
 
-### Conversation
+### Conversation (list endpoint)
 ```json
 {
   "id": "uuid",
-  "leadId": "uuid",
-  "inboxProvider": "string|null",
-  "externalId": "string|null",
-  "lastInboundAt": "ISO 8601|null",
-  "lastOutboundAt": "ISO 8601|null",
+  "lead": { "name": "...", "email": "...", "company": "...", "status": "new" },
+  "status": "new",
   "awaitingReply": true,
   "humanTakeover": false,
+  "messages": [ { "id": "...", "role": "user", "source": "customer", "content": "...", "createdAt": "..." } ],
   "createdAt": "ISO 8601"
 }
 ```
@@ -103,24 +103,53 @@ npm run dev  # → http://localhost:4321
 }
 ```
 
-### Business Config (key → JSONB value)
-Keys: `business`, `tone`, `knowledge`, `services`, `faq`, `escalation`, `booking`, `providers`, `agent`
+### Config (GET response)
+```json
+{
+  "config": {
+    "business": { "name": "", "tagline": "", "website": "", "description": "" },
+    "tone": { "style": "professional", "instructions": "", "dos": [], "donts": [] },
+    "knowledge": { "links": [], "texts": [] },
+    "services": [],
+    "faq": [],
+    "escalation": { "triggerPhrases": [], "notifyEmail": "" },
+    "booking": { "url": "", "cta": "", "timing": "after_second_exchange" },
+    "providers": {
+      "llm": "openai",
+      "llmApiKey": "env:OPENAI_API_KEY",
+      "llmModel": "",
+      "email": "resend",
+      "emailApiKey": "env:RESEND_API_KEY",
+      "fromEmail": "hello@pouncefirst.com",
+      "inbox": ""
+    },
+    "agent": { "enabled": false, "webhookUrl": "" }
+  }
+}
+```
 
-Each key stores its config section as a JSON object. See `docs/PLAN.md` → "Source of Truth" section for the full structure.
+### Analytics
+```json
+{
+  "stats": { "totalLeads": 0, "responseRate": 0, "avgResponseTime": "0.0", "bookingRate": 0, "leadsThisWeek": 0, "leadsLastWeek": 0 },
+  "weeklyData": [{ "day": "Mon", "leads": 0, "responses": 0, "bookings": 0 }],
+  "statusBreakdown": [{ "status": "new", "count": 1 }],
+  "recentActivity": [{ "action": "email_received", "target": "email@example.com", "time": "ISO 8601" }]
+}
+```
 
-## Admin API Routes (Bolt Will Build Next)
+## What Pip Builds
 
-Pip can start building UI with mock data. When she needs a real API endpoint, drop a `<!-- BOLT: Need GET /api/admin/leads -->` comment and I'll build it.
+### Admin Dashboard Pages (`src/pages/admin/`)
+- `/admin` — Dashboard home (pipeline overview, recent leads)
+- `/admin/leads` — Lead pipeline view (new → contacted → scheduled → closed)
+- `/admin/conversations` — Conversation threads
+- `/admin/settings` — Business config (9 sections)
+- `/admin/analytics` — Response rates, booking rates
+- `/admin/book` — Cal.com booking embed
 
-Priority admin routes I'll build in order:
-1. `GET /api/admin/leads` — List leads with filters
-2. `GET /api/admin/leads/:id` — Lead detail + conversation
-3. `GET /api/admin/conversations/:id` — Full message thread
-4. `GET /api/admin/config` — All business config
-5. `PATCH /api/admin/config` — Update config
-6. `PATCH /api/admin/leads/:id` — Update lead status
-7. `POST /api/admin/conversations/:id/reply` — Human reply
-8. `GET /api/admin/analytics` — Dashboard stats
+### UI Components (`src/components/`)
+- Lead cards, conversation thread, pipeline board, config forms, etc.
 
 ## Settings Page Sections
 
@@ -131,8 +160,27 @@ Priority admin routes I'll build in order:
 5. **FAQ** — common questions + approved answers
 6. **Escalation Rules** — trigger phrases, who gets notified
 7. **Booking** — calendar link, CTA text, timing
-8. **Integrations** — LLM, email, inbox provider settings
+8. **Integrations** — LLM provider + API key reference, email provider + API key reference, inbox
 9. **Agent Mode** — enable/disable, webhook URL
+
+### Provider Config Format
+The `providers` config section is fully dynamic — no hardcoded provider→env mapping:
+
+```json
+{
+  "llm": "openai",
+  "llmApiKey": "env:OPENAI_API_KEY",
+  "llmModel": "gpt-4o-mini",
+  "email": "resend",
+  "emailApiKey": "env:RESEND_API_KEY",
+  "fromEmail": "hello@pouncefirst.com",
+  "inbox": ""
+}
+```
+
+To add a new LLM provider (e.g., Gemini): set `llm` to the provider name, `llmApiKey` to `env:GEMINI_API_KEY`. No code changes needed — just config + a provider implementation file if one doesn't exist yet.
+
+`env:KEY` references are resolved at runtime from `import.meta.env` / `process.env`.
 
 ## Handoff Protocol
 
@@ -159,3 +207,12 @@ Color coding suggestions for the pipeline view:
 - closed_lost → gray
 - escalated → red
 - opted_out → gray (muted)
+
+## Trust & Safety (Non-Negotiable)
+
+- **Unsubscribe link** on every outbound email — no exceptions
+- **10 AI message cap** per conversation — then human must take over
+- **Daily send cap** — enforced per tier (100 default)
+- **AI disclosure** — first response must identify as AI
+- **Content scanning** — escalation trigger phrases auto-detect
+- **Opted-out leads** — never contacted again

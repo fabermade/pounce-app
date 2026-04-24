@@ -15,6 +15,7 @@ import {
 } from '../../lib/core/lead-parser.js';
 import { addMessage } from '../../lib/core/conversation.js';
 import { transitionLeadStatus, logEvent } from '../../lib/core/pipeline.js';
+import { runResponsePipeline } from '../../lib/core/response-pipeline.js';
 
 // ─── Zod Schema ──────────────────────────────────────────────────
 
@@ -74,6 +75,10 @@ async function processInboundLead(lead: NormalizedLead): Promise<{
   conversationId: string;
   status: string;
   aiResponseSent: boolean;
+  aiResponseResult?: {
+    escalated: boolean;
+    bookingOffered: boolean;
+  };
 }> {
   // 1. Look up existing lead by email
   const existingLead = await db
@@ -167,16 +172,22 @@ async function processInboundLead(lead: NormalizedLead): Promise<{
     });
   }
 
-  // 2. Check if AI can respond
-  //    For now, we'll return the lead/conversation info.
-  //    The LLM response pipeline will be triggered asynchronously.
-  //    This endpoint is responsible for intake only.
-  const aiResponseSent = false; // Will be set by the async pipeline
+  // 2. Run AI response pipeline
+  //    This handles: config loading → LLM call → email send → message save
+  //    If the pipeline fails (no API key, daily cap, etc.), the lead/conversation
+  //    are still created — just no AI response sent.
+  const pipelineResult = await runResponsePipeline(conversationId);
 
   return {
     leadId,
     conversationId,
-    status: existingLead.length > 0 ? 'customer_waiting' : 'new',
-    aiResponseSent,
+    status: pipelineResult.escalated ? 'escalated' : existingLead.length > 0 ? 'customer_waiting' : 'new',
+    aiResponseSent: pipelineResult.aiResponseSent,
+    aiResponseResult: pipelineResult.aiResponseSent
+      ? {
+          escalated: pipelineResult.escalated ?? false,
+          bookingOffered: pipelineResult.bookingOffered ?? false,
+        }
+      : undefined,
   };
 }

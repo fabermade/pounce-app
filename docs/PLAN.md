@@ -291,12 +291,19 @@ events (
 
 **What's out (v2+):**
 - Multiple LLM/email provider switching (architecture supports it, UI comes later)
-- CRM integrations (HubSpot, Salesforce)
+- CRM integrations (HubSpot, Salesforce, Pipedrive, Zoho)
 - LinkedIn enrichment
 - Built-in calendar
 - Human review queue
 - Analytics dashboard
 - Self-host installer
+
+**What's out (v3+):**
+- Two-way CRM sync (leads, contacts, deals, activities)
+- CRM pipeline status mirroring (lead status → CRM stage)
+- Custom CRM field mapping
+- Webhook triggers on status changes (for Zapier/Make workflows)
+- Slack/Teams notifications
 
 ---
 

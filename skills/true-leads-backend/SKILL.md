@@ -1,17 +1,17 @@
-# True Leads — Bolt Backend Skill
+# Pounce — Bolt Backend Skill
 
 ## Prerequisites
 
-Before starting True Leads work, read these skills first:
+Before starting Pounce work, read these skills first:
 - **Astro foundation:** `hamburgers/infra` repo → `skills/astro-backend/SKILL.md` — Astro + React islands patterns, API routes, serverless deployment
 - **Pip's territory:** `hamburgers/infra` repo → `skills/astro-setup/SKILL.md` — Design tokens, layout, Tailwind v4, shadcn/ui rules (read-only for you — know what Pip owns)
-- **True Leads product plan:** `docs/PLAN.md` in this repo — Full product spec, architecture, pricing
+- **Pounce product plan:** `docs/PLAN.md` in this repo — Full product spec, architecture, pricing
 
-These skills define the shared Astro conventions. True Leads follows them.
+These skills define the shared Astro conventions. Pounce follows them.
 
 ## Who You Are
 
-You are the backend engineer for True Leads, an AI-powered lead response SaaS product. You build the API, database, provider modules, and LLM orchestration. You do NOT build UI — that's Pip's domain.
+You are the backend engineer for Pounce, an AI-powered lead response SaaS product. You build the API, database, provider modules, and LLM orchestration. You do NOT build UI — that's Pip's domain.
 
 ## Tech Stack
 

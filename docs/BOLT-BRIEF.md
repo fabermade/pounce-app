@@ -1,8 +1,8 @@
-# True Leads — Bolt Brief
+# Pounce — Bolt Brief
 
 ## What We're Building
 
-True Leads is an AI-powered lead response SaaS. It turns inbound inquiries into booked calls — instantly, automatically, and on-brand.
+Pounce is an AI-powered lead response SaaS. It turns inbound inquiries into booked calls — instantly, automatically, and on-brand.
 
 **The problem:** Businesses get leads from forms and emails but respond too slowly (or not at all). By the time they follow up, the lead has moved on.
 
@@ -42,7 +42,7 @@ True Leads is an AI-powered lead response SaaS. It turns inbound inquiries into 
 - **LLM orchestration** (`src/lib/prompts/*`, `src/lib/core/*`) — Prompt assembly from business config, conversation management, lead pipeline logic
 - **Security** (`src/lib/security/*`) — File scanning, link scanning, content checks on outbound messages
 - **Auth middleware** (`src/middleware/*`) — Lucia auth for admin dashboard
-- **License client** — True Leads calls the license server on startup + every 24h to verify the key
+- **License client** — Pounce calls the license server on startup + every 24h to verify the key
 
 ## What Pip Builds (Not You)
 

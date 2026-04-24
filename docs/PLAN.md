@@ -1,14 +1,21 @@
-# True Leads — Product Plan
+# Pounce (repo: TrueLeads) — Product Plan
+
+**Public name:** Pounce
+**Domain:** pouncefirst.com
+**Tagline:** "Your leads deserve a response in seconds, not days."
+**Repo naming:** TrueLeads / trueleads-license (keeps product identity separate from code repos)
+
+---
 
 ## Vision
 
-True Leads is an AI-powered lead response system that turns inbound inquiries into booked calls. It replaces the "contact form → black hole" experience with instant, personalized responses that guide leads toward scheduling.
+Pounce is an AI-powered lead response system that turns inbound inquiries into booked calls. It replaces the "contact form → black hole" experience with instant, personalized responses that guide leads toward scheduling.
 
 **Two products, one engine:**
-- **True Leads Managed** — We set up, host, and manage the pipeline. Customer pays monthly.
-- **True Leads Self-Host** — Customer buys the software, runs it on their infrastructure.
+- **Pounce Managed** — We set up, host, and manage the pipeline. Customer pays monthly.
+- **Pounce Self-Host** — Customer buys the software, runs it on their infrastructure.
 
-Faber Made is True Leads' first customer.
+Faber Made is Pounce's first customer.
 
 ---
 
@@ -22,7 +29,7 @@ Lead → Webhook → OpenClaw wakes Hank → Hank reads context → Hank drafts 
 
 That's fundamentally: **receive event → call LLM with context → send response**. An agent loop is overkill for a deterministic workflow. What we need:
 
-| Current (Agent) | True Leads (Service) |
+| Current (Agent) | Pounce (Service) |
 |-----------------|---------------------|
 | SOUL.md | System prompt (configurable) |
 | MEMORY.md | Database (conversation history) |
@@ -318,7 +325,7 @@ events (
 
 ---
 
-## Migration Path (Faber Made → True Leads)
+## Migration Path (Faber Made → Pounce)
 
 1. **Extract patterns from current pipeline**
    - Webhook receiver → Astro API route
@@ -326,25 +333,25 @@ events (
    - Resend integration → EmailProvider module
    - Booking link → Cal.com config
 
-2. **Build True Leads core**
+2. **Build Pounce core**
    - Database schema + ORM
    - Lead intake API
    - LLM provider abstraction
    - Email provider abstraction
    - Admin dashboard skeleton
 
-3. **Point Faber Made at True Leads**
-   - Change `AGENT_WEBHOOK_URL` to point to True Leads `/api/inbound`
+3. **Point Faber Made at Pounce**
+   - Change `AGENT_WEBHOOK_URL` to point to Pounce `/api/inbound`
    - Configure business info in admin
    - Test end-to-end
 
 4. **Turn off Hank for lead responses**
    - Hank still runs for other tasks (personal assistant)
-   - But lead pipeline now goes through True Leads
+   - But lead pipeline now goes through Pounce
 
 ## Licensing & DRM (Self-Host Tier)
 
-True Leads self-host requires a license key. The managed tier doesn't need one — we control hosting.
+Pounce self-host requires a license key. The managed tier doesn't need one — we control hosting.
 
 ### License Model
 
@@ -357,13 +364,13 @@ True Leads self-host requires a license key. The managed tier doesn't need one �
 ### How It Works
 
 ```
-1. Customer buys on trueleads.ai → gets license key (TL-XXXX-XXXX-XXXX)
+1. Customer buys on pouncefirst.com → gets license key (TL-XXXX-XXXX-XXXX)
 2. Customer enters key in admin Settings → License section
-3. On startup: True Leads POSTs to license server
+3. On startup: Pounce POSTs to license server
    { key: "TL-XXXX", domain: "leads.customer.com" }
 4. License server validates: key exists? domain authorized? not expired? within site limit?
 5. Returns: { valid: true, expires: "2027-04-24", sites: 1, features: [...] }
-6. True Leads caches result, re-verifies every 24 hours
+6. Pounce caches result, re-verifies every 24 hours
 7. If invalid: dashboard shows warning, email sending disabled, data stays readable
 ```
 
@@ -371,7 +378,7 @@ True Leads self-host requires a license key. The managed tier doesn't need one �
 
 - License check fails (network issue): 72-hour grace period, full functionality
 - After 72h without verification: read-only mode (can view data, can't send emails or use LLM)
-- License expired: 14-day grace with watermark on outbound emails ("Sent via True Leads — license expired")
+- License expired: 14-day grace with watermark on outbound emails ("Sent via Pounce — license expired")
 - After 14 days: sending disabled
 
 ### License Server API (we host, private)
@@ -485,7 +492,7 @@ true-leads/
 
 ## Agent Integration (Optional)
 
-True Leads works without an agent (pure API + LLM calls). But some customers want a persistent AI agent managing their pipeline — reading context, making nuanced decisions, handling edge cases an LLM call alone can't.
+Pounce works without an agent (pure API + LLM calls). But some customers want a persistent AI agent managing their pipeline — reading context, making nuanced decisions, handling edge cases an LLM call alone can't.
 
 **Agent mode is optional, not required.** The core product works standalone.
 
@@ -537,11 +544,11 @@ When `agent.mode` is `"none"` (default), the standard LLM pipeline handles every
 
 ## Trust & Safety (Non-Negotiable)
 
-True Leads is a powerful tool for automating outbound communication. Without safeguards, it can be weaponized for spam, phishing, harassment, or disinformation. These measures are mandatory, not optional.
+Pounce is a powerful tool for automating outbound communication. Without safeguards, it can be weaponized for spam, phishing, harassment, or disinformation. These measures are mandatory, not optional.
 
 ### Anti-Abuse Rules
 
-1. **No cold outreach.** True Leads responds to inbound leads only. Every conversation starts with the lead contacting the business — never the other way around. The system must not support unsolicited outreach campaigns.
+1. **No cold outreach.** Pounce responds to inbound leads only. Every conversation starts with the lead contacting the business — never the other way around. The system must not support unsolicited outreach campaigns.
 2. **Opt-in required.** Every lead must have explicitly submitted a form, sent an email, or taken a comparable opt-in action. No purchased lists, no scraped contacts.
 3. **Unsubscribe on every email.** Every outbound email includes a one-click unsubscribe link. Clicking it marks the lead as `opted_out` and the system never emails them again.
 4. **CAN-SPAM compliance.** Physical mailing address in footer, clear sender identification, no deceptive subject lines.
@@ -560,7 +567,7 @@ True Leads is a powerful tool for automating outbound communication. Without saf
 
 ### Prohibited Use Cases
 
-True Leads must not be used for:
+Pounce must not be used for:
 - Unsolicited bulk email (spam)
 - Phishing or social engineering
 - Political campaigning without disclosure

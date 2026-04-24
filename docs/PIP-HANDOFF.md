@@ -169,16 +169,16 @@ The `providers` config section is fully dynamic — no hardcoded provider→env 
 ```json
 {
   "llm": "openai",
-  "llmApiKey": "env:OPENAI_API_KEY",
+  "llmApiKey": "env:LLM_API_KEY",
   "llmModel": "gpt-4o-mini",
   "email": "resend",
-  "emailApiKey": "env:RESEND_API_KEY",
+  "emailApiKey": "env:EMAIL_API_KEY",
   "fromEmail": "hello@pouncefirst.com",
   "inbox": ""
 }
 ```
 
-To add a new LLM provider (e.g., Gemini): set `llm` to the provider name, `llmApiKey` to `env:GEMINI_API_KEY`. No code changes needed — just config + a provider implementation file if one doesn't exist yet.
+To add a new LLM provider (e.g., Gemini): set `llm` to the provider name, `llmApiKey` to `env:LLM_API_KEY`. The actual key goes in `.env` as `LLM_API_KEY=sk-...` — same env var for any provider.
 
 `env:KEY` references are resolved at runtime from `import.meta.env` / `process.env`.
 

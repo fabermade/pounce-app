@@ -87,7 +87,7 @@ export const messages = pgTable('messages', {
 
 export const businessConfig = pgTable('business_config', {
   key: text('key').primaryKey(),
-  value: jsonb('value').$type<Record<string, unknown>>().notNull(),
+  value: jsonb('value').$type<Record<string, unknown> | unknown[]>().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

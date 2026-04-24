@@ -2,15 +2,14 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema.js';
 
-// Lazy initialization — don't create the connection at module import time.
-// Astro API routes call getDb() to get the connection, which reads
-// DATABASE_URL from process.env at request time.
+export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: Database | null = null;
 
-export function getDb() {
+export function getDb(): Database {
   if (!_db) {
-    const databaseUrl = process.env.DATABASE_URL;
+    // Astro dev server uses import.meta.env; production uses process.env
+    const databaseUrl = import.meta.env.DATABASE_URL ?? process.env.DATABASE_URL;
     if (!databaseUrl) {
       throw new Error(
         'DATABASE_URL environment variable is not set. ' +
@@ -22,10 +21,3 @@ export function getDb() {
   }
   return _db;
 }
-
-// Convenience export for use in API routes
-export const db = new Proxy({} as ReturnType<typeof drizzle>, {
-  get(_target, prop) {
-    return (getDb() as Record<string, unknown>)[prop];
-  },
-});

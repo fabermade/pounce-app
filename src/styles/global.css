@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  /* Pounce Brand Colors */
+  --color-pounce-orange: #F5A623;
+  --color-pounce-orange-dark: #E09620;
+  --color-pounce-orange-light: #FDB913;
+  
+  --color-charcoal: #1E1E1E;
+  --color-charcoal-light: #2D2D2D;
+  --color-charcoal-muted: #666666;
+  
+  --color-cream: #FAF7F2;
+  --color-cream-dark: #F0EDE8;
+  
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+  
+  /* Status Colors */
+  --color-status-new: #3B82F6;
+  --color-status-contacted: #EAB308;
+  --color-status-customer-waiting: #F97316;
+  --color-status-scheduled: #22C55E;
+  --color-status-closed-won: #16A34A;
+  --color-status-closed-lost: #9CA3AF;
+  --color-status-escalated: #EF4444;
+  --color-status-opted-out: #D1D5DB;
+  
+  /* Typography */
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  
+  /* Spacing */
+  --spacing-sidebar: 16rem;
+}
+
+/* Global Styles */
+html {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: var(--color-charcoal);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}

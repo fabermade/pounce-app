@@ -1,0 +1,83 @@
+---
+interface Props {
+  title: string;
+  currentPath: string;
+}
+
+const { title, currentPath } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} | Pounce</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      @import "tailwindcss";
+      
+      @theme {
+        --color-pounce-orange: #F5A623;
+        --color-pounce-orange-dark: #E09620;
+        --color-pounce-orange-light: #FDB913;
+        
+        --color-charcoal: #1E1E1E;
+        --color-charcoal-light: #2D2D2D;
+        --color-charcoal-muted: #666666;
+        
+        --color-cream: #FAF7F2;
+        --color-cream-dark: #F0EDE8;
+        
+        --color-white: #FFFFFF;
+        --color-black: #000000;
+        
+        --color-status-new: #3B82F6;
+        --color-status-contacted: #EAB308;
+        --color-status-customer-waiting: #F97316;
+        --color-status-scheduled: #22C55E;
+        --color-status-closed-won: #16A34A;
+        --color-status-closed-lost: #9CA3AF;
+        --color-status-escalated: #EF4444;
+        --color-status-opted-out: #D1D5DB;
+        
+        --font-heading: 'Space Grotesk', system-ui, sans-serif;
+        --font-body: 'Inter', system-ui, sans-serif;
+      }
+      
+      html {
+        font-family: var(--font-body);
+        background-color: var(--color-cream);
+        color: var(--color-charcoal);
+      }
+      
+      h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+      }
+      
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #D1D5DB;
+        border-radius: 3px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9CA3AF;
+      }
+    </style>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

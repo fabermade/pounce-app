@@ -57,7 +57,17 @@ export const GET: APIRoute = async () => {
       }
     }
 
-    return new Response(JSON.stringify({ config }), {
+    // Mask API keys in response — never expose raw secrets over the wire
+    const safeConfig = { ...config };
+    if (safeConfig.providers && typeof safeConfig.providers === 'object') {
+      const prov = safeConfig.providers as Record<string, unknown>;
+      if (prov.llmApiKey) prov.llmApiKeySet = true;
+      if (prov.emailApiKey) prov.emailKeySet = true;
+      prov.llmApiKey = prov.llmApiKey ? '••••••••' : '';
+      prov.emailApiKey = prov.emailApiKey ? '••••••••' : '';
+    }
+
+    return new Response(JSON.stringify({ config: safeConfig }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -121,6 +131,8 @@ export const PATCH: APIRoute = async ({ request }) => {
 
       let mergedValue: ConfigValue;
 
+      // Deep merge objects, but preserve API keys if new value is empty
+      // (user left the field blank to keep existing key)
       if (existing) {
         const existingVal = existing.value as ConfigValue;
         // Deep merge for objects, replace for arrays
@@ -131,6 +143,18 @@ export const PATCH: APIRoute = async ({ request }) => {
           !Array.isArray(existingVal) && typeof existingVal === 'object' && existingVal !== null
         ) {
           mergedValue = { ...(existingVal as Record<string, unknown>), ...(newValue as Record<string, unknown>) };
+
+          // Preserve existing API keys when new value is empty or masked placeholder
+          const secretFields = ['llmApiKey', 'emailApiKey'];
+          for (const field of secretFields) {
+            if (field in (mergedValue as Record<string, unknown>)) {
+              const newVal = (mergedValue as Record<string, unknown>)[field];
+              const oldVal = (existingVal as Record<string, unknown>)[field];
+              if ((newVal === '' || newVal === '••••••••') && oldVal && String(oldVal).length > 0) {
+                (mergedValue as Record<string, unknown>)[field] = oldVal;
+              }
+            }
+          }
         } else {
           mergedValue = newValue as ConfigValue;
         }

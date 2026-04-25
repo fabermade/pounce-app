@@ -11,6 +11,7 @@ const navItems = [
   { path: '/admin/leads', label: 'Leads', icon: Users },
   { path: '/admin/conversations', label: 'Conversations', icon: MessageSquare },
   { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/admin/users', label: 'Users', icon: Users },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

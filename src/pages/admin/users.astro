@@ -1,0 +1,387 @@
+---
+import AdminLayout from '../../components/admin/AdminLayout';
+
+// Fetch users from API
+let users: Array<{id: string; email: string; name: string; role: string; lastLogin: string | null}> = [];
+let error: string | null = null;
+
+try {
+  const res = await fetch(`${Astro.url.origin}/api/admin/users`, {
+    headers: { 'Cookie': Astro.request.headers.get('cookie') || '' }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    users = data.users || [];
+  } else {
+    error = 'Failed to load users';
+  }
+} catch (e) {
+  error = 'Failed to load users';
+}
+---
+
+<AdminLayout currentPath="/admin/users">
+  <div class="p-8 max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold font-heading text-charcoal">Users</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage team access and permissions</p>
+      </div>
+      <button
+        id="invite-btn"
+        class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors"
+      >
+        Invite User
+      </button>
+    </div>
+
+    {error && (
+      <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-600">{error}</p>
+      </div>
+    )}
+
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50/50">
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body" class="divide-y divide-gray-100">
+          {users.map((user) => (
+            <tr class="hover:bg-gray-50/50 transition-colors">
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-charcoal flex items-center justify-center text-white text-sm font-medium">
+                    {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
+                  </div>
+                  <span class="text-sm font-medium text-charcoal">{user.name || 'Unnamed'}</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+              <td class="px-6 py-4">
+                <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                  user.role === 'owner' ? 'bg-amber-50 text-amber-700' :
+                  user.role === 'admin' ? 'bg-blue-50 text-blue-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>
+                  {user.role}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-500">
+                {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+              </td>
+              <td class="px-6 py-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <button
+                    class="edit-btn text-sm text-gray-500 hover:text-charcoal transition-colors"
+                    data-user={JSON.stringify(user)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="delete-btn text-sm text-red-500 hover:text-red-700 transition-colors"
+                    data-user-id={user.id}
+                    data-user-name={user.name || user.email}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {users.length === 0 && !error && (
+        <div class="p-8 text-center">
+          <p class="text-sm text-gray-500">No users yet.</p>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Invite Dialog */}
+  <div id="invite-dialog" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-md mx-4 p-6">
+      <h2 class="text-lg font-bold font-heading text-charcoal mb-1">Invite User</h2>
+      <p class="text-sm text-gray-500 mb-5">Send an invitation to join your team.</p>
+
+      <div id="invite-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-600"></p>
+      </div>
+
+      <form id="invite-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            type="email"
+            name="email"
+            required
+            placeholder="colleague@company.com"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input
+            type="text"
+            name="name"
+            placeholder="Jane Doe"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <select
+            name="role"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm bg-white"
+          >
+            <option value="admin">Admin</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" id="invite-cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-charcoal transition-colors">Cancel</button>
+          <button type="submit" id="invite-submit" class="px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Send Invite</button>
+        </div>
+      </form>
+
+      <div id="invite-success" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <p class="text-sm text-green-700">Invitation sent! Share this link:</p>
+        <div class="mt-2 flex items-center gap-2">
+          <input
+            id="invite-url"
+            type="text"
+            readonly
+            class="flex-1 px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg font-mono"
+          />
+          <button id="copy-invite" class="px-3 py-2 text-xs bg-charcoal text-white rounded-lg hover:bg-charcoal-light transition-colors">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Edit Dialog */}
+  <div id="edit-dialog" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-md mx-4 p-6">
+      <h2 class="text-lg font-bold font-heading text-charcoal mb-1">Edit User</h2>
+      <p class="text-sm text-gray-500 mb-5">Update user details and permissions.</p>
+
+      <div id="edit-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-600"></p>
+      </div>
+
+      <form id="edit-form" class="space-y-4">
+        <input type="hidden" name="userId" id="edit-user-id" />
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input
+            type="text"
+            name="name"
+            id="edit-name"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <select
+            name="role"
+            id="edit-role"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm bg-white"
+          >
+            <option value="admin">Admin</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" id="edit-cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-charcoal transition-colors">Cancel</button>
+          <button type="submit" id="edit-submit" class="px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {/* Delete Dialog */}
+  <div id="delete-dialog" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-sm mx-4 p-6">
+      <h2 class="text-lg font-bold font-heading text-charcoal mb-1">Delete User</h2>
+      <p class="text-sm text-gray-500 mb-5">Are you sure you want to remove <span id="delete-user-name" class="font-medium text-charcoal"></span>? This cannot be undone.</p>
+
+      <div class="flex items-center justify-end gap-3">
+        <button type="button" id="delete-cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-charcoal transition-colors">Cancel</button>
+        <button type="button" id="delete-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // Invite dialog
+  const inviteDialog = document.getElementById('invite-dialog');
+  const inviteBtn = document.getElementById('invite-btn');
+  const inviteCancel = document.getElementById('invite-cancel');
+  const inviteForm = document.getElementById('invite-form');
+  const inviteSubmit = document.getElementById('invite-submit');
+  const inviteError = document.getElementById('invite-error');
+  const inviteSuccess = document.getElementById('invite-success');
+
+  inviteBtn.addEventListener('click', () => {
+    inviteDialog.classList.remove('hidden');
+    inviteDialog.classList.add('flex');
+    inviteSuccess.classList.add('hidden');
+    inviteForm.reset();
+  });
+
+  inviteCancel.addEventListener('click', () => {
+    inviteDialog.classList.add('hidden');
+    inviteDialog.classList.remove('flex');
+  });
+
+  inviteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    inviteSubmit.disabled = true;
+    inviteSubmit.textContent = 'Sending...';
+
+    const formData = new FormData(inviteForm);
+    try {
+      const res = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.get('email'),
+          name: formData.get('name'),
+          role: formData.get('role'),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        inviteSuccess.classList.remove('hidden');
+        document.getElementById('invite-url').value = data.inviteUrl;
+        inviteForm.reset();
+      } else {
+        inviteError.querySelector('p').textContent = data.error || 'Failed to send invitation';
+        inviteError.classList.remove('hidden');
+      }
+    } catch (err) {
+      inviteError.querySelector('p').textContent = 'Network error. Please try again.';
+      inviteError.classList.remove('hidden');
+    } finally {
+      inviteSubmit.disabled = false;
+      inviteSubmit.textContent = 'Send Invite';
+    }
+  });
+
+  document.getElementById('copy-invite').addEventListener('click', () => {
+    const input = document.getElementById('invite-url');
+    input.select();
+    document.execCommand('copy');
+  });
+
+  // Edit dialog
+  const editDialog = document.getElementById('edit-dialog');
+  const editForm = document.getElementById('edit-form');
+  const editCancel = document.getElementById('edit-cancel');
+  const editSubmit = document.getElementById('edit-submit');
+  const editError = document.getElementById('edit-error');
+
+  document.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const user = JSON.parse(btn.dataset.user);
+      document.getElementById('edit-user-id').value = user.id;
+      document.getElementById('edit-name').value = user.name || '';
+      document.getElementById('edit-role').value = user.role;
+      editDialog.classList.remove('hidden');
+      editDialog.classList.add('flex');
+      editError.classList.add('hidden');
+    });
+  });
+
+  editCancel.addEventListener('click', () => {
+    editDialog.classList.add('hidden');
+    editDialog.classList.remove('flex');
+  });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    editSubmit.disabled = true;
+    editSubmit.textContent = 'Saving...';
+
+    const userId = document.getElementById('edit-user-id').value;
+    const formData = new FormData(editForm);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          role: formData.get('role'),
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        editError.querySelector('p').textContent = data.error || 'Failed to update user';
+        editError.classList.remove('hidden');
+        editSubmit.disabled = false;
+        editSubmit.textContent = 'Save';
+      }
+    } catch (err) {
+      editError.querySelector('p').textContent = 'Network error. Please try again.';
+      editError.classList.remove('hidden');
+      editSubmit.disabled = false;
+      editSubmit.textContent = 'Save';
+    }
+  });
+
+  // Delete dialog
+  const deleteDialog = document.getElementById('delete-dialog');
+  const deleteCancel = document.getElementById('delete-cancel');
+  const deleteConfirm = document.getElementById('delete-confirm');
+  let deleteUserId = '';
+
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      deleteUserId = btn.dataset.userId;
+      document.getElementById('delete-user-name').textContent = btn.dataset.userName;
+      deleteDialog.classList.remove('hidden');
+      deleteDialog.classList.add('flex');
+    });
+  });
+
+  deleteCancel.addEventListener('click', () => {
+    deleteDialog.classList.add('hidden');
+    deleteDialog.classList.remove('flex');
+  });
+
+  deleteConfirm.addEventListener('click', async () => {
+    if (!deleteUserId) return;
+    deleteConfirm.disabled = true;
+    deleteConfirm.textContent = 'Deleting...';
+
+    try {
+      const res = await fetch(`/api/admin/users/${deleteUserId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete user');
+        deleteConfirm.disabled = false;
+        deleteConfirm.textContent = 'Delete';
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+      deleteConfirm.disabled = false;
+      deleteConfirm.textContent = 'Delete';
+    }
+  });
+</script>

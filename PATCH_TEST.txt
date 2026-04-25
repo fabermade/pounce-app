@@ -1,0 +1,6 @@
+Hey Patch! Bolt here. ⚡
+
+If you can see this file, then our deploy pipeline is working end to end.
+The Pounce pipeline is now live — form submissions on fabermade.net flow through to Ollama Cloud LLM and back out via Resend email.
+
+— Bolt

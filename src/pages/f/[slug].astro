@@ -1,0 +1,242 @@
+---
+/**
+ * /f/:slug — Public embeddable form page.
+ *
+ * Renders a form by slug. Can be embedded in an iframe on external sites.
+ * POSTs to /api/f/:slug.
+ */
+
+import { db, forms } from '@/lib/db/index.js';
+import { eq } from 'drizzle-orm';
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/');
+}
+
+const [form] = await db
+  .select()
+  .from(forms)
+  .where(eq(forms.slug, slug))
+  .limit(1);
+
+if (!form || !form.active) {
+  return new Response('Form not found', { status: 404 });
+}
+
+const fields = form.fields as Array<{
+  name: string;
+  type: string;
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  options?: string[];
+}>;
+
+const APP_URL = import.meta.env.APP_URL || 'https://www.pouncefirst.com';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{form.name}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 24px;
+      background: #ffffff;
+      color: #1a1a1a;
+    }
+    .form-container { max-width: 480px; margin: 0 auto; }
+    .form-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+    .form-label .required { color: #ef4444; }
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9375rem;
+      transition: border-color 0.15s;
+      background: #ffffff;
+    }
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .form-textarea { min-height: 100px; resize: vertical; }
+    .form-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9375rem;
+    }
+    .form-checkbox { width: 18px; height: 18px; accent-color: #3b82f6; }
+    .submit-button {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .submit-button:hover { background: #2563eb; }
+    .submit-button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .success-message {
+      text-align: center;
+      padding: 24px;
+      color: #059669;
+      font-size: 1.125rem;
+    }
+    .error-message {
+      color: #ef4444;
+      font-size: 0.8125rem;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container" id="form-wrapper">
+    <div class="form-title">{form.name}</div>
+    <form id="pounce-form" method="POST" action={`${APP_URL}/api/f/${form.slug}`}>
+      {fields.map((field: any) => (
+        <div class="form-group">
+          <label class="form-label" for={`field-${field.name}`}>
+            {field.label}
+            {field.required && <span class="required"> *</span>}
+          </label>
+          {field.type === 'textarea' ? (
+            <textarea
+              class="form-textarea"
+              id={`field-${field.name}`}
+              name={field.name}
+              placeholder={field.placeholder || ''}
+              required={field.required || false}
+            ></textarea>
+          ) : field.type === 'select' ? (
+            <select
+              class="form-select"
+              id={`field-${field.name}`}
+              name={field.name}
+              required={field.required || false}
+            >
+              <option value="">Select...</option>
+              {(field.options || []).map((opt: string) => (
+                <option value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : field.type === 'checkbox' ? (
+            <label class="form-checkbox-label">
+              <input
+                type="checkbox"
+                class="form-checkbox"
+                id={`field-${field.name}`}
+                name={field.name}
+                value="true"
+              />
+              {field.placeholder || field.label}
+            </label>
+          ) : (
+            <input
+              class="form-input"
+              type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : 'text'}
+              id={`field-${field.name}`}
+              name={field.name}
+              placeholder={field.placeholder || ''}
+              required={field.required || false}
+            />
+          )}
+        </div>
+      ))}
+      <button type="submit" class="submit-button" id="submit-btn">Submit</button>
+    </form>
+  </div>
+
+  <div class="form-container" id="success-wrapper" style="display:none">
+    <div class="success-message">
+      {form.submitMessage || "Thank you! We'll be in touch soon."}
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('pounce-form') as HTMLFormElement;
+    const formWrapper = document.getElementById('form-wrapper')!;
+    const successWrapper = document.getElementById('success-wrapper')!;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      try {
+        const formData = new FormData(form);
+        const data: Record<string, unknown> = {};
+        for (const [key, value] of formData.entries()) {
+          // Convert checkbox "on" to boolean
+          data[key] = value === 'on' ? true : value;
+        }
+
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          formWrapper.style.display = 'none';
+          successWrapper.style.display = 'block';
+
+          // Redirect if configured
+          if (result.redirectUrl) {
+            setTimeout(() => { window.location.href = result.redirectUrl; }, 1500);
+          }
+        } else {
+          // Show validation errors
+          if (result.details) {
+            const errors = result.details;
+            for (const [field, msg] of Object.entries(errors)) {
+              const input = document.getElementById(`field-${field}`);
+              if (input) {
+                const errEl = document.createElement('div');
+                errEl.className = 'error-message';
+                errEl.textContent = String(msg);
+                input.parentElement?.appendChild(errEl);
+              }
+            }
+          }
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit';
+        }
+      } catch {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit';
+      }
+    });
+  </script>
+</body>
+</html>

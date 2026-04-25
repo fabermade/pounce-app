@@ -9,6 +9,17 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// ─── Types ──────────────────────────────────────────────────────────
+
+export interface FormSchema {
+  name: string;
+  type: 'text' | 'email' | 'textarea' | 'tel' | 'select' | 'checkbox';
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  options?: string[]; // for select fields
+}
+
 // ─── Leads ────────────────────────────────────────────────────────
 // Pipeline statuses:
 //   new             → Just arrived, no response sent yet
@@ -136,6 +147,36 @@ export const passwordResets = pgTable('password_resets', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ─── Forms ────────────────────────────────────────────────────────
+// Custom lead capture forms that can be embedded on external sites.
+// Each form has a schema (fields config) and maps to the inbound API.
+
+export const forms = pgTable('forms', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  fields: jsonb('fields').$type<FormSchema[]>().notNull(),
+  submitMessage: text('submit_message').default('Thank you! We\'ll be in touch soon.'),
+  redirectUrl: text('redirect_url'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Form Submissions ─────────────────────────────────────────────
+// Stores the raw form data for each submission.
+
+export const formSubmissions = pgTable('form_submissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  formId: uuid('form_id')
+    .notNull()
+    .references(() => forms.id, { onDelete: 'cascade' }),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+  leadId: uuid('lead_id')
+    .references(() => leads.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ─── Daily Send Count ─────────────────────────────────────────────
 // Track outbound sends per business per day for rate limiting.
 // Enforced per tier: Starter 50/day, Business 500/day, Enterprise configurable.
@@ -184,5 +225,20 @@ export const passwordResetsRelations = relations(passwordResets, ({ one }) => ({
   user: one(users, {
     fields: [passwordResets.userId],
     references: [users.id],
+  }),
+}));
+
+export const formsRelations = relations(forms, ({ many }) => ({
+  submissions: many(formSubmissions),
+}));
+
+export const formSubmissionsRelations = relations(formSubmissions, ({ one }) => ({
+  form: one(forms, {
+    fields: [formSubmissions.formId],
+    references: [forms.id],
+  }),
+  lead: one(leads, {
+    fields: [formSubmissions.leadId],
+    references: [leads.id],
   }),
 }));

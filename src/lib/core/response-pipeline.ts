@@ -398,7 +398,7 @@ export async function runResponsePipeline(
  * Config values may store "env:KEY" — we resolve to the actual value.
  * Falls back to checking import.meta.env (Astro) then process.env (Node).
  */
-function resolveEnvKey(keyOrRef: string): string {
+export function resolveEnvKey(keyOrRef: string): string {
   if (!keyOrRef) return '';
 
   if (keyOrRef.startsWith('env:')) {

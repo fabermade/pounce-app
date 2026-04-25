@@ -20,7 +20,7 @@ const AUTH_PATHS = new Set([
 ]);
 
 // Paths that start with these prefixes are public
-const PUBLIC_PREFIXES = ['/api/webhook/'];
+const PUBLIC_PREFIXES = ['/api/webhook/', '/api/f/', '/f/'];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;

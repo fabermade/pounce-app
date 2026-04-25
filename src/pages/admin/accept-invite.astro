@@ -200,63 +200,68 @@ const role = params.get('role') || 'admin';
   </div>
 
   <script>
-    const form = document.getElementById('accept-form');
-    const errorBanner = document.getElementById('error-banner');
-    const errorMessage = document.getElementById('error-message');
-    const submitBtn = document.getElementById('submit-btn');
+    const form = document.getElementById('accept-form') as HTMLFormElement | null;
+    const errorBanner = document.getElementById('error-banner') as HTMLDivElement | null;
+    const errorMessage = document.getElementById('error-message') as HTMLParagraphElement | null;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement | null;
 
-    // Validate token present
-    const token = form.querySelector('input[name="token"]').value;
-    if (!token) {
-      errorMessage.textContent = 'Invalid or expired invitation link.';
-      errorBanner.classList.add('visible');
-      submitBtn.disabled = true;
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const password = formData.get('password');
-      const confirmPassword = formData.get('confirmPassword');
-
-      if (password !== confirmPassword) {
-        errorMessage.textContent = 'Passwords do not match';
+    if (!form || !errorBanner || !errorMessage || !submitBtn) {
+      console.error('Missing DOM elements');
+    } else {
+      // Validate token present
+      const tokenInput = form.querySelector('input[name="token"]') as HTMLInputElement | null;
+      const token = tokenInput ? tokenInput.value : '';
+      if (!token) {
+        errorMessage.textContent = 'Invalid or expired invitation link.';
         errorBanner.classList.add('visible');
-        return;
+        submitBtn.disabled = true;
       }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Creating account...';
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const password = formData.get('password');
+        const confirmPassword = formData.get('confirmPassword');
 
-      try {
-        const res = await fetch('/api/admin/accept-invite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: formData.get('token'),
-            email: formData.get('email'),
-            name: formData.get('name'),
-            role: formData.get('role'),
-            password,
-          }),
-        });
-        const data = await res.json();
+        if (password !== confirmPassword) {
+          errorMessage.textContent = 'Passwords do not match';
+          errorBanner.classList.add('visible');
+          return;
+        }
 
-        if (res.ok) {
-          window.location.href = '/admin';
-        } else {
-          errorMessage.textContent = data.error || 'Failed to accept invitation';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+
+        try {
+          const res = await fetch('/api/admin/accept-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: formData.get('token'),
+              email: formData.get('email'),
+              name: formData.get('name'),
+              role: formData.get('role'),
+              password,
+            }),
+          });
+          const data = await res.json();
+
+          if (res.ok) {
+            window.location.href = '/admin';
+          } else {
+            errorMessage.textContent = data.error || 'Failed to accept invitation';
+            errorBanner.classList.add('visible');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Accept Invitation';
+          }
+        } catch (err) {
+          errorMessage.textContent = 'Network error. Please try again.';
           errorBanner.classList.add('visible');
           submitBtn.disabled = false;
           submitBtn.textContent = 'Accept Invitation';
         }
-      } catch (err) {
-        errorMessage.textContent = 'Network error. Please try again.';
-        errorBanner.classList.add('visible');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Accept Invitation';
-      }
-    });
+      });
+    }
   </script>
 </body>
 </html>

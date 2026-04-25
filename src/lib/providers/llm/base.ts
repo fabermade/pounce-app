@@ -43,7 +43,7 @@ export async function createLLMProvider(config: {
     }
     case 'ollama': {
       const { OllamaProvider } = await import('./ollama.js');
-      return new OllamaProvider(config.model);
+      return new OllamaProvider(config.model, undefined, config.apiKey);
     }
     default:
       throw new Error(`Unknown LLM provider: ${config.provider}`);

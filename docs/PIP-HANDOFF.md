@@ -1,218 +1,197 @@
-# Pounce — Pip Handoff
+# PIP-HANDOFF.md — Pounce Phase 2-5 UI Build Plan
 
-## Getting Started
+**From:** Bolt (Backend)
+**To:** Pip (Frontend/Visual Design)
+**Branch:** `bolt/phase2-users` (pushed, ready to merge to main)
+**Date:** 2026-04-25
 
-```bash
-cd ~/.openclaw/workspace-pip/repos  # or wherever you clone
-git clone git@github.com:hamburgers/TrueLeads.git
-cd TrueLeads
-git checkout main && git pull origin main
-npm install
+---
+
+## What's Done (Backend APIs Ready to Wire)
+
+All API endpoints are built, tested (0 TS errors, clean build), and pushed. Your job: build the UI pages that consume them.
+
+### Auth & Users (Phase 2)
+
+| Page | Route | API Endpoints |
+|------|-------|---------------|
+| **Login** | `/admin/login` | `POST /api/admin/login` — body: `{ email, password }` → sets `pounce_session` cookie → redirect to `/admin` |
+| **Reset Password** | `/admin/reset-password` | `POST /api/admin/reset-password` — body: `{ email }` → returns `{ token }` (MVP returns in response, production sends email) |
+| **Set New Password** | `/admin/reset-password?token=X` | `POST /api/admin/verify-reset` — body: `{ token, newPassword }` → sets session cookie |
+| **Accept Invite** | `/admin/accept-invite?token=X&email=Y&name=Z&role=W` | `POST /api/admin/accept-invite` — body: `{ token, email, name, role, password }` → sets session cookie |
+| **Change Password** | (in settings or user profile) | `POST /api/admin/change-password` — body: `{ currentPassword, newPassword }` — auth required |
+| **User Management** | `/admin/users` | `GET /api/admin/users` — returns `{ users: [...] }` |
+| **Create User** | (dialog on users page) | `POST /api/admin/invite` — body: `{ email, name, role }` — owner only — returns invite URL |
+| **Edit User** | (dialog on users page) | `PATCH /api/admin/users/[id]` — body: `{ name?, role? }` — admin+ only |
+| **Delete User** | (dialog on users page) | `DELETE /api/admin/users/[id]` — admin+ only — can't delete self or last owner |
+
+### Forms (Phase 5)
+
+| Page | Route | API Endpoints |
+|------|-------|---------------|
+| **Form List** | `/admin/forms` | `GET /api/admin/forms` — returns `{ forms: [...] }` |
+| **Create Form** | (dialog or new page) | `POST /api/admin/forms` — body: `{ name, slug, fields, submitMessage?, redirectUrl?, active? }` |
+| **Edit Form** | `/admin/forms/[id]` | `GET /api/admin/forms/[id]`, `PATCH /api/admin/forms/[id]` |
+| **Delete Form** | (on form list) | `DELETE /api/admin/forms/[id]` |
+| **Public Form** | `/f/[slug]` | Already built (SSR page, iframe-friendly) — no UI work needed |
+| **Embed Code** | (shown in form detail) | Snippet: `<script src="https://www.pouncefirst.com/api/f/[slug]/embed.js"></script>` |
+
+### Booking (Phase 4)
+
+| Setting | Location | API |
+|---------|----------|-----|
+| **Booking Provider** | Settings → Booking | Config PATCH: `{ booking: { provider: 'calcom'|'calendly', url: '...', cta: '...', timing: 'immediately'|'after_first_exchange'|'after_second_exchange'|'manual' } }` |
+| **Webhook URL** | (shown in settings for copy-paste to Cal.com/Calendly dashboard) | `https://www.pouncefirst.com/api/webhook/booking?provider=calcom` |
+
+### Inbox/Resend (Phase 3)
+
+| Setting | Location | API |
+|---------|----------|-----|
+| **Webhook URL** | Settings → Integrations (info display) | `https://www.pouncefirst.com/api/webhook/resend` — paste into Resend inbound routing |
+
+---
+
+## API Contract Details
+
+### Auth Flow
+
+**Login:**
+```
+POST /api/admin/login
+Body: { email: string, password: string }
+Success: 200 { user: { id, email, name, role } } + Set-Cookie: pounce_session=...
+Error: 401 { error: "Invalid email or password" }
+Rate limit: 5 attempts/min/IP (429 if exceeded)
 ```
 
-Copy `.env.example` to `.env` (the DATABASE_URL is already filled in — you need it for the dev server).
+**Session cookie:** `pounce_session` — HttpOnly, Secure (prod), SameSite=Strict, 24h expiry
 
-```bash
-npm run dev  # → http://localhost:4321
-```
+**Session data:** `{ userId, email, role }` — available in `context.locals.session` on SSR pages
 
-## What's Built (Backend)
+### User Roles
+- **owner**: Can do everything (manage users, settings, all data)
+- **admin**: Can use the app, can't manage users
+- **viewer**: Read-only (future — currently same access as admin minus user management)
 
-### Database (Neon PostgreSQL)
-6 tables already pushed and live:
-- **leads** — inbound leads with pipeline status
-- **conversations** — tied to leads, tracks inbound/outbound
-- **messages** — conversation history (role: system/assistant/user, source: ai/human/customer)
-- **business_config** — key-value JSONB store for all settings
-- **events** — audit log for status changes, emails, bookings
-- **daily_send_counts** — rate limiting tracker
-
-### API Routes (All Working, End-to-End Tested)
-
-**Inbound:**
-- `POST /api/inbound` — Lead intake + AI response pipeline (form, webhook, email)
-
-**Admin:**
-- `GET /api/admin/leads` — List leads with filters (status, source, search, pagination)
-- `GET /api/admin/leads/[id]` — Single lead detail
-- `PATCH /api/admin/leads/[id]` — Update lead, status transitions validated
-- `GET /api/admin/conversations` — List conversations with messages and lead info
-- `GET /api/admin/conversations/[id]` — Full message thread
-- `POST /api/admin/conversations/[id]/reply` — Human takeover
-- `GET /api/admin/config` — All 9 business config sections (with defaults)
-- `PATCH /api/admin/config` — Update config (deep merge objects, replace arrays)
-- `GET /api/admin/analytics` — Dashboard stats, weekly data, status breakdown, recent activity
-
-**Unsubscribe:**
-- `GET /api/unsubscribe?email=...` — One-click unsubscribe (CAN-SPAM compliant)
-
-### Core Modules
-- `src/lib/core/lead-parser.ts` — Normalize inbound payloads
-- `src/lib/core/conversation.ts` — Conversation state + message history + 10-msg AI cap
-- `src/lib/core/pipeline.ts` — Status transitions + event logging
-- `src/lib/core/booking.ts` — Booking CTA logic
-- `src/lib/core/response-pipeline.ts` — **The Pounce engine** (config → LLM → email → message → status)
-- `src/lib/prompts/system.ts` — System prompt builder from business config
-
-### Provider Interfaces (Swappable, No Hardcoded Providers)
-- **LLM:** OpenAI, Anthropic, Ollama — config selects which, `llmApiKey` stores the env reference
-- **Email:** Resend, SendGrid, Mailgun — config selects which, `emailApiKey` stores the env reference
-
-## API Response Shapes (Mock Against These)
-
-### Lead
-```json
-{
-  "id": "uuid",
-  "source": "form|email|webhook|api",
-  "type": "lead|reply|booking",
-  "name": "string",
-  "email": "string",
-  "company": "string|null",
-  "message": "string",
-  "status": "new|contacted|customer_waiting|scheduled|closed_won|closed_lost|escalated|opted_out",
-  "metadata": {},
-  "createdAt": "ISO 8601",
-  "updatedAt": "ISO 8601"
+### Form Schema (fields JSONB)
+```typescript
+interface FormSchema {
+  name: string;           // field identifier (used as form input name)
+  type: 'text' | 'email' | 'textarea' | 'tel' | 'select' | 'checkbox';
+  label: string;          // display label
+  required?: boolean;
+  placeholder?: string;
+  options?: string[];     // for select type only
 }
 ```
 
-### Conversation (list endpoint)
+### Form Create/Update Body
 ```json
 {
-  "id": "uuid",
-  "lead": { "name": "...", "email": "...", "company": "...", "status": "new" },
-  "status": "new",
-  "awaitingReply": true,
-  "humanTakeover": false,
-  "messages": [ { "id": "...", "role": "user", "source": "customer", "content": "...", "createdAt": "..." } ],
-  "createdAt": "ISO 8601"
+  "name": "Contact Form",
+  "slug": "contact",
+  "fields": [
+    { "name": "name", "type": "text", "label": "Your Name", "required": true },
+    { "name": "email", "type": "email", "label": "Email Address", "required": true },
+    { "name": "message", "type": "textarea", "label": "How can we help?", "required": true },
+    { "name": "service", "type": "select", "label": "Service", "options": ["Design", "Development", "Consulting"] }
+  ],
+  "submitMessage": "Thanks! We'll reach out within 24 hours.",
+  "redirectUrl": "",
+  "active": true
 }
 ```
 
-### Message
-```json
-{
-  "id": "uuid",
-  "conversationId": "uuid",
-  "role": "system|assistant|user",
-  "source": "ai|human|customer",
-  "content": "string",
-  "metadata": {},
-  "createdAt": "ISO 8601"
-}
+### Config PATCH (settings save)
 ```
-
-### Config (GET response)
-```json
-{
-  "config": {
-    "business": { "name": "", "tagline": "", "website": "", "description": "" },
-    "tone": { "style": "professional", "instructions": "", "dos": [], "donts": [] },
-    "knowledge": { "links": [], "texts": [] },
-    "services": [],
-    "faq": [],
-    "escalation": { "triggerPhrases": [], "notifyEmail": "" },
-    "booking": { "url": "", "cta": "", "timing": "after_second_exchange" },
-    "providers": {
-      "llm": "openai",
-      "llmApiKey": "env:LLM_API_KEY",
-      "llmModel": "",
-      "email": "resend",
-      "emailApiKey": "env:EMAIL_API_KEY",
-      "fromEmail": "hello@pouncefirst.com",
-      "inbox": ""
-    },
-    "agent": { "enabled": false, "webhookUrl": "" }
-  }
-}
+PATCH /api/admin/config
+Body: { [key]: value }  // partial updates
 ```
+**Important:** API key fields (`llmApiKey`, `emailApiKey`) — send blank or `••••••••` to keep existing value. Only send a real value if you're changing the key.
 
-### Analytics
-```json
-{
-  "stats": { "totalLeads": 0, "responseRate": 0, "avgResponseTime": "0.0", "bookingRate": 0, "leadsThisWeek": 0, "leadsLastWeek": 0 },
-  "weeklyData": [{ "day": "Mon", "leads": 0, "responses": 0, "bookings": 0 }],
-  "statusBreakdown": [{ "status": "new", "count": 1 }],
-  "recentActivity": [{ "action": "email_received", "target": "email@example.com", "time": "ISO 8601" }]
-}
-```
+---
 
-## What Pip Builds
+## Priority Order
 
-### Admin Dashboard Pages (`src/pages/admin/`)
-- `/admin` — Dashboard home (pipeline overview, recent leads)
-- `/admin/leads` — Lead pipeline view (new → contacted → scheduled → closed)
-- `/admin/conversations` — Conversation threads
-- `/admin/settings` — Business config (9 sections)
-- `/admin/analytics` — Response rates, booking rates
-- `/admin/book` — Cal.com booking embed
+Build these in order (estimated times):
 
-### UI Components (`src/components/`)
-- Lead cards, conversation thread, pipeline board, config forms, etc.
+### 1. Login Page (~30 min) — BLOCKS EVERYTHING
+- `/admin/login` — email + password form
+- Error display for invalid credentials
+- Redirect to `?redirect=` param after success
+- Currently there's a skeleton at `src/pages/admin/login.astro` you can extend
 
-## Settings Page Sections
+### 2. Password Reset Flow (~20 min)
+- `/admin/reset-password` — email input → request token
+- Show token-based reset form (MVP: after requesting, show the set-password form inline)
+- On success, auto-login + redirect to dashboard
 
-1. **Business Identity** — name, tagline, website, description
-2. **Tone & Voice** — style preset, custom instructions, dos/don'ts
-3. **Knowledge Sources** — links (scraped) + manual text entries
-4. **Services & Pricing** — what you sell
-5. **FAQ** — common questions + approved answers
-6. **Escalation Rules** — trigger phrases, who gets notified
-7. **Booking** — calendar link, CTA text, timing
-8. **Integrations** — LLM provider + API key reference, email provider + API key reference, inbox
-9. **Agent Mode** — enable/disable, webhook URL
+### 3. Accept Invite Page (~20 min)
+- `/admin/accept-invite?token=X&email=Y&name=Z&role=W`
+- Pre-fill email, name, role (read-only)
+- Password field + confirmation
+- On success, auto-login + redirect to dashboard
 
-### Provider Config Format
-The `providers` config section is fully dynamic — no hardcoded provider→env mapping:
+### 4. User Management Page (~45 min)
+- `/admin/users` — table of users with name, email, role, last login
+- Owner-only: invite user dialog (email, name, role selector)
+- Owner/admin: edit user dialog (change name, role)
+- Owner/admin: delete user (confirmation dialog, can't delete self/last owner)
+- Show role badges (owner = gold, admin = blue, viewer = gray)
 
-```json
-{
-  "llm": "openai",
-  "llmApiKey": "env:LLM_API_KEY",
-  "llmModel": "gpt-4o-mini",
-  "email": "resend",
-  "emailApiKey": "env:EMAIL_API_KEY",
-  "fromEmail": "hello@pouncefirst.com",
-  "inbox": ""
-}
-```
+### 5. Change Password (~15 min)
+- Add to settings or user profile dropdown
+- Current password + new password + confirm
+- Success toast, error display
 
-To add a new LLM provider (e.g., Gemini): set `llm` to the provider name, `llmApiKey` to `env:LLM_API_KEY`. The actual key goes in `.env` as `LLM_API_KEY=sk-...` — same env var for any provider.
+### 6. Form Builder UI (~1.5 hr)
+- `/admin/forms` — list of forms with name, slug, status (active/inactive)
+- Create/edit form page:
+  - Name + slug inputs
+  - Drag-drop field builder (add/remove/reorder fields)
+  - Field editor: type, label, required, placeholder, options (for select)
+  - Live preview panel
+  - Submit message + redirect URL settings
+  - Active toggle
+- Embed code display (copy button)
 
-`env:KEY` references are resolved at runtime from `import.meta.env` / `process.env`.
+### 7. Booking Settings Section (~30 min)
+- Add to existing settings page
+- Provider selector: Cal.com / Calendly / None
+- Booking URL input
+- CTA text input
+- Timing selector (immediately / after 1st exchange / after 2nd / manual)
+- Webhook URL display (copy button, read-only)
 
-## Handoff Protocol
+---
 
-- Pip needs an API → drop `<!-- BOLT: Need ... -->` comment
-- Bolt changes API shape → adds `<!-- PIP: Updated ... -->` comment
-- Pip's territory: `src/components/`, `src/pages/admin/`, `src/styles/`
-- Bolt's territory: `src/pages/api/`, `src/lib/`, `src/middleware/`
+## Design Notes
 
-## Lead Pipeline Statuses
+- **All admin pages use the existing AdminLayout** (`src/components/admin/AdminLayout.tsx`)
+- **Auth-protected:** Middleware redirects unauthenticated users to `/admin/login`
+- **SSR pages read from DB directly** — don't `fetch()` your own API from server-side code (cookies aren't forwarded)
+- **Client-side API calls** from React islands — use `fetch('/api/admin/...')` with credentials
+- **Checkbox values:** HTML checkboxes submit `"on"` — convert to `true`/`false` before sending to API
+- **API key fields:** Show masked `••••••••` for existing keys, only send real values when changing
+- **Form data with arrays:** Use bracket notation: `tone.dos[0]`, `faq[0].question`, `services[0].name`
+- **BOLT: comments:** If you need me to add/change anything in the API, leave `<!-- BOLT: ... -->` comments and I'll pick them up
 
-```
-new → contacted → customer_waiting → scheduled → closed_won
-                                              ↘ closed_lost
-                                              ↘ escalated
-                                              ↘ opted_out
-```
+---
 
-Color coding suggestions for the pipeline view:
-- new → blue
-- contacted → yellow
-- customer_waiting → orange
-- scheduled → green
-- closed_won → green (solid)
-- closed_lost → gray
-- escalated → red
-- opted_out → gray (muted)
+## Branch Workflow
 
-## Trust & Safety (Non-Negotiable)
+1. Branch from latest main: `git checkout main && git pull origin main && git checkout -b pip/phase2-ui`
+2. Build, commit, push
+3. Post in dev channel when ready
+4. Patch reviews + merges
 
-- **Unsubscribe link** on every outbound email — no exceptions
-- **10 AI message cap** per conversation — then human must take over
-- **Daily send cap** — enforced per tier (100 default)
-- **AI disclosure** — first response must identify as AI
-- **Content scanning** — escalation trigger phrases auto-detect
-- **Opted-out leads** — never contacted again
+---
+
+## Current Site State
+
+- **Live:** https://www.pouncefirst.com
+- **Setup:** Completed (Faber Made is the first customer)
+- **Working pipeline:** Form submission → AI response → email delivery
+- **Admin dashboard:** Settings, Leads, Conversations, Analytics pages exist but need auth gates + real data wiring
+
+Good luck, Pip. The APIs are solid — just wire 'em up. ⚡

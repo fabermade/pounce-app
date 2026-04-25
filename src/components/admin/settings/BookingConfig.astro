@@ -1,0 +1,131 @@
+---
+export interface Props {
+  booking?: {
+    provider?: string;
+    url?: string;
+    cta?: string;
+    timing?: string;
+  };
+}
+
+const { booking = {} } = Astro.props;
+const providers = [
+  { value: 'calcom', label: 'Cal.com' },
+  { value: 'calendly', label: 'Calendly' },
+  { value: '', label: 'None' },
+];
+const timings = [
+  { value: 'immediately', label: 'Immediately' },
+  { value: 'after_first_exchange', label: 'After first exchange' },
+  { value: 'after_second_exchange', label: 'After second exchange' },
+  { value: 'manual', label: 'Manual only' },
+];
+---
+
+<div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+  <h2 class="text-lg font-bold font-heading text-charcoal mb-1">Booking Integration</h2>
+  <p class="text-sm text-gray-500 mb-5">Configure how Pounce offers calendar booking to leads.</p>
+
+  <div class="space-y-4 max-w-lg">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Booking Provider</label>
+      <select
+        name="booking.provider"
+        id="booking-provider"
+        class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm bg-white"
+      >
+        {providers.map(p => (
+          <option value={p.value} selected={booking.provider === p.value}>{p.label}</option>
+        ))}
+      </select>
+    </div>
+
+    <div id="booking-url-container">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Booking URL</label>
+      <input
+        type="url"
+        name="booking.url"
+        id="booking-url"
+        value={booking.url || ''}
+        placeholder="https://cal.com/your-name"
+        class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+      />
+    </div>
+
+    <div id="booking-cta-container">
+      <label class="block text-sm font-medium text-gray-700 mb-1">CTA Text</label>
+      <input
+        type="text"
+        name="booking.cta"
+        id="booking-cta"
+        value={booking.cta || ''}
+        placeholder="Book a call"
+        class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+      />
+    </div>
+
+    <div id="booking-timing-container">
+      <label class="block text-sm font-medium text-gray-700 mb-1">When to Offer Booking</label>
+      <select
+        name="booking.timing"
+        id="booking-timing"
+        class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm bg-white"
+      >
+        {timings.map(t => (
+          <option value={t.value} selected={booking.timing === t.value}>{t.label}</option>
+        ))}
+      </select>
+    </div>
+
+    <div id="webhook-url-container" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Webhook URL (for {booking.provider || 'provider'} dashboard)</label>
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          readonly
+          id="webhook-url"
+          value={booking.provider ? `https://www.pouncefirst.com/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
+          class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
+        />
+        <button
+          id="copy-webhook"
+          class="px-3 py-2 bg-charcoal text-white rounded-lg text-xs font-medium hover:bg-charcoal-light transition-colors"
+        >Copy</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">Paste this URL into your {booking.provider || 'provider'} webhook settings to receive booking confirmations.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const providerSelect = document.getElementById('booking-provider') as HTMLSelectElement;
+  const urlContainer = document.getElementById('booking-url-container');
+  const ctaContainer = document.getElementById('booking-cta-container');
+  const timingContainer = document.getElementById('booking-timing-container');
+  const webhookContainer = document.getElementById('webhook-url-container');
+  const webhookInput = document.getElementById('webhook-url') as HTMLInputElement;
+
+  function updateVisibility() {
+    const provider = providerSelect.value;
+    const show = !!provider;
+    if (urlContainer) urlContainer.style.display = show ? 'block' : 'none';
+    if (ctaContainer) ctaContainer.style.display = show ? 'block' : 'none';
+    if (timingContainer) timingContainer.style.display = show ? 'block' : 'none';
+    if (webhookContainer) webhookContainer.style.display = show ? 'block' : 'none';
+    if (webhookInput) {
+      webhookInput.value = provider
+        ? `https://www.pouncefirst.com/api/webhook/booking?provider=${provider}`
+        : 'Select a provider to see webhook URL';
+    }
+  }
+
+  providerSelect?.addEventListener('change', updateVisibility);
+  updateVisibility();
+
+  document.getElementById('copy-webhook')?.addEventListener('click', () => {
+    if (webhookInput) {
+      webhookInput.select();
+      document.execCommand('copy');
+    }
+  });
+</script>

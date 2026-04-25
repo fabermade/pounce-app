@@ -34,7 +34,7 @@ export interface PipelineConfig {
   /** Business config loaded from DB */
   business: FullBusinessConfig;
   /** Resolved provider config (API keys already pulled from env) */
-  llm: { provider: string; model?: string; apiKey: string };
+  llm: { provider: string; model?: string; apiKey: string; baseUrl?: string };
   email: { provider: string; apiKey: string; fromEmail: string };
   /** Daily send cap */
   dailySendCap: number;
@@ -115,6 +115,7 @@ export async function loadPipelineConfig(): Promise<PipelineConfig> {
       provider: llmProvider,
       model: String(providers.llmModel ?? ''),
       apiKey: llmApiKey,
+      baseUrl: String(providers.llmBaseUrl ?? ''),
     },
     email: {
       provider: emailProvider,

@@ -31,6 +31,7 @@ export async function createLLMProvider(config: {
   provider: string;
   model?: string;
   apiKey: string;
+  baseUrl?: string;
 }): Promise<LLMProvider> {
   switch (config.provider) {
     case 'openai': {
@@ -43,7 +44,7 @@ export async function createLLMProvider(config: {
     }
     case 'ollama': {
       const { OllamaProvider } = await import('./ollama.js');
-      return new OllamaProvider(config.model, undefined, config.apiKey);
+      return new OllamaProvider(config.model, config.baseUrl, config.apiKey);
     }
     default:
       throw new Error(`Unknown LLM provider: ${config.provider}`);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, MessageSquare, Settings, BarChart3, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Settings, BarChart3, Calendar, FileText } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/admin/conversations', label: 'Conversations', icon: MessageSquare },
   { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/admin/users', label: 'Users', icon: Users },
+  { path: '/admin/forms', label: 'Forms', icon: FileText },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

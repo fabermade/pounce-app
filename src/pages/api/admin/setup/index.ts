@@ -15,13 +15,22 @@
  */
 
 import type { APIRoute } from 'astro';
-import { db, businessConfig } from '../../../../lib/db/index.js';
+import { db, businessConfig } from '@/lib/db/index.js';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { createUser } from '@/lib/auth/users.js';
+import { createSession, setSessionCookie } from '@/lib/auth/session.js';
 
 // ─── Zod Schema ──────────────────────────────────────────────────
 
 const setupSchema = z.object({
+  // Admin account (Step 1)
+  admin: z.object({
+    email: z.string().email('Valid admin email is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    name: z.string().min(1, 'Admin name is required'),
+  }),
+  // Business info
   business: z.object({
     name: z.string().min(1, 'Business name is required'),
     tagline: z.string().min(1, 'Tagline is required'),
@@ -156,10 +165,31 @@ export const POST: APIRoute = async ({ request }) => {
         set: { value: { completedAt: new Date().toISOString() }, updatedAt: new Date() },
       });
 
-    return new Response(JSON.stringify({ config: configSections }), {
+    // Create owner user account
+    const adminUser = await createUser({
+      email: data.admin.email,
+      password: data.admin.password,
+      name: data.admin.name,
+      role: 'owner',
+    });
+
+    // Create session for auto-login
+    const sessionToken = await createSession({
+      userId: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role as 'owner',
+    });
+
+    const response = new Response(JSON.stringify({
+      config: configSections,
+      user: { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role },
+    }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
+
+    setSessionCookie(response, sessionToken);
+    return response;
   } catch (err) {
     console.error('Setup error:', err);
     return new Response(

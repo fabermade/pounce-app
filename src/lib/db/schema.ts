@@ -106,6 +106,36 @@ export const events = pgTable('events', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ─── Users ────────────────────────────────────────────────────────
+// Multi-user accounts for team collaboration.
+// Phase 1 (single admin) uses business_config — Phase 2 migrates here.
+
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  role: text('role', { enum: ['owner', 'admin', 'viewer'] }).notNull().default('admin'),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Password Resets ────────────────────────────────────────────────
+// Token-based password reset flow. Tokens are SHA-256 hashed in DB.
+// Raw token only sent once via email, never stored.
+
+export const passwordResets = pgTable('password_resets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  used: boolean('used').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ─── Daily Send Count ─────────────────────────────────────────────
 // Track outbound sends per business per day for rate limiting.
 // Enforced per tier: Starter 50/day, Business 500/day, Enterprise configurable.
@@ -143,5 +173,16 @@ export const eventsRelations = relations(events, ({ one }) => ({
   lead: one(leads, {
     fields: [events.leadId],
     references: [leads.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  passwordResets: many(passwordResets),
+}));
+
+export const passwordResetsRelations = relations(passwordResets, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResets.userId],
+    references: [users.id],
   }),
 }));

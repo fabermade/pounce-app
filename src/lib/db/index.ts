@@ -8,10 +8,14 @@ export {
   businessConfig,
   events,
   dailySendCounts,
+  users,
+  passwordResets,
   leadsRelations,
   conversationsRelations,
   messagesRelations,
   eventsRelations,
+  usersRelations,
+  passwordResetsRelations,
 } from './schema.js';
 
 // Inferred row types — use these for type annotations
@@ -25,6 +29,10 @@ export type Message = InferSelectModel<typeof Schema.messages>;
 export type NewMessage = InferInsertModel<typeof Schema.messages>;
 export type Event = InferSelectModel<typeof Schema.events>;
 export type BusinessConfigRow = InferSelectModel<typeof Schema.businessConfig>;
+export type User = InferSelectModel<typeof Schema.users>;
+export type NewUser = InferInsertModel<typeof Schema.users>;
+export type PasswordReset = InferSelectModel<typeof Schema.passwordResets>;
+export type NewPasswordReset = InferInsertModel<typeof Schema.passwordResets>;
 
 // Lazy db accessor — call getDb() in API routes to get the connection.
 // This avoids connecting at module import time (before env vars are loaded).

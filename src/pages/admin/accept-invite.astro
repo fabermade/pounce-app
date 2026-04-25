@@ -1,0 +1,262 @@
+---
+// /admin/accept-invite — Accept invitation + set password
+const params = Astro.url.searchParams;
+const token = params.get('token') || '';
+const email = params.get('email') || '';
+const name = params.get('name') || '';
+const role = params.get('role') || 'admin';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accept Invitation — Pounce</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --pounce-orange: #F5A623;
+      --charcoal: #1E1E1E;
+      --charcoal-light: #333;
+      --cream: #FAF7F2;
+      --deep-teal: #2A6B6B;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --red-50: #fef2f2;
+      --red-200: #fecaca;
+      --red-600: #dc2626;
+      --green-50: #f0fdf4;
+      --green-200: #bbf7d0;
+      --green-700: #15803d;
+      --font-heading: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-body);
+      background: var(--cream);
+      color: var(--charcoal);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      background: white;
+      border-radius: 1rem;
+      border: 1px solid var(--gray-200);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo { text-align: center; margin-bottom: 1.5rem; }
+    .logo a {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .logo .p { color: var(--pounce-orange); }
+    .logo .ounce { color: var(--charcoal); }
+    .logo p { color: var(--gray-500); font-size: 0.875rem; margin-top: 0.5rem; }
+    .invite-info {
+      background: var(--gray-100);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .invite-info p { font-size: 0.875rem; color: var(--gray-700); }
+    .invite-info .label { font-weight: 500; color: var(--gray-500); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+    .role-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .role-badge.owner { background: #fef3c7; color: #92400e; }
+    .role-badge.admin { background: #dbeafe; color: #1e40af; }
+    .role-badge.viewer { background: var(--gray-200); color: var(--gray-700); }
+    .form-group { margin-bottom: 1.25rem; }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+      margin-bottom: 0.375rem;
+    }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--gray-200);
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-family: var(--font-body);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: var(--gray-100);
+    }
+    input:not([readonly]) {
+      background: white;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--pounce-orange);
+      box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.12);
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.875rem;
+      background: var(--charcoal);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-family: var(--font-heading);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button[type="submit"]:hover { background: var(--charcoal-light); }
+    button[type="submit"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .error-banner {
+      display: none;
+      padding: 0.75rem;
+      background: var(--red-50);
+      border: 1px solid var(--red-200);
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .error-banner.visible { display: block; }
+    .error-banner p { font-size: 0.8125rem; color: var(--red-600); }
+    .back-link {
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: 0.8125rem;
+    }
+    .back-link a { color: var(--gray-500); text-decoration: none; }
+    .back-link a:hover { color: var(--charcoal); text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <a href="/">
+        <span class="p">P</span><span class="ounce">ounce</span>
+      </a>
+      <p>Accept your invitation</p>
+    </div>
+
+    <div class="invite-info">
+      <div style="margin-bottom: 0.75rem;">
+        <p class="label">Name</p>
+        <p id="info-name">{name}</p>
+      </div>
+      <div style="margin-bottom: 0.75rem;">
+        <p class="label">Email</p>
+        <p id="info-email">{email}</p>
+      </div>
+      <div>
+        <p class="label">Role</p>
+        <p><span id="info-role" class={`role-badge ${role}`}>{role}</span></p>
+      </div>
+    </div>
+
+    <div id="error-banner" class="error-banner">
+      <p id="error-message"></p>
+    </div>
+
+    <form id="accept-form" class="space-y-5">
+      <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="email" value={email} />
+      <input type="hidden" name="name" value={name} />
+      <input type="hidden" name="role" value={role} />
+
+      <div class="form-group">
+        <label>Set Password</label>
+        <input type="password" name="password" required minlength="8" placeholder="At least 8 characters" />
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" name="confirmPassword" required placeholder="Repeat your password" />
+      </div>
+
+      <button type="submit" id="submit-btn">Accept Invitation</button>
+    </form>
+
+    <div class="back-link">
+      <a href="/admin/login">Already have an account? Sign in</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('accept-form');
+    const errorBanner = document.getElementById('error-banner');
+    const errorMessage = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submit-btn');
+
+    // Validate token present
+    const token = form.querySelector('input[name="token"]').value;
+    if (!token) {
+      errorMessage.textContent = 'Invalid or expired invitation link.';
+      errorBanner.classList.add('visible');
+      submitBtn.disabled = true;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const password = formData.get('password');
+      const confirmPassword = formData.get('confirmPassword');
+
+      if (password !== confirmPassword) {
+        errorMessage.textContent = 'Passwords do not match';
+        errorBanner.classList.add('visible');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+
+      try {
+        const res = await fetch('/api/admin/accept-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: formData.get('token'),
+            email: formData.get('email'),
+            name: formData.get('name'),
+            role: formData.get('role'),
+            password,
+          }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          window.location.href = '/admin';
+        } else {
+          errorMessage.textContent = data.error || 'Failed to accept invitation';
+          errorBanner.classList.add('visible');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Accept Invitation';
+        }
+      } catch (err) {
+        errorMessage.textContent = 'Network error. Please try again.';
+        errorBanner.classList.add('visible');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Accept Invitation';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -17,6 +17,7 @@ const AUTH_PATHS = new Set([
   '/admin/accept-invite',
   '/api/admin/reset-password',
   '/api/admin/verify-reset',
+  '/api/admin/accept-invite',
 ]);
 
 // Paths that start with these prefixes are public

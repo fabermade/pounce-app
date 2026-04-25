@@ -1,0 +1,476 @@
+---
+import AdminLayout from '../../../components/admin/AdminLayout';
+
+const { id } = Astro.params;
+let form: any = null;
+let error: string | null = null;
+
+try {
+  const res = await fetch(`${Astro.url.origin}/api/admin/forms/${id}`, {
+    headers: { 'Cookie': Astro.request.headers.get('cookie') || '' }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    form = data.form;
+  } else {
+    error = 'Failed to load form';
+  }
+} catch (e) {
+  error = 'Failed to load form';
+}
+---
+
+<AdminLayout currentPath="/admin/forms">
+  <div class="p-8 max-w-6xl mx-auto">
+    <div class="mb-8">
+      <a href="/admin/forms" class="text-sm text-gray-500 hover:text-charcoal transition-colors mb-2 inline-block">&larr; Back to forms</a>
+      <h1 class="text-2xl font-bold font-heading text-charcoal">{form?.name || 'Edit Form'}</h1>
+      <p class="text-sm text-gray-500 mt-1">Update fields, settings, and embed code</p>
+    </div>
+
+    {error && (
+      <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm text-red-600">{error}</p>
+      </div>
+    )}
+
+    {form && (
+      <>
+        <!-- Embed Code Card -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold font-heading text-charcoal">Embed Code</h2>
+              <p class="text-sm text-gray-500">Paste this script on any page to embed the form</p>
+            </div>
+            <span class={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              form.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {form.active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              readonly
+              value={`<script src="https://www.pouncefirst.com/api/f/${form.slug}/embed.js"></script>`}
+              id="embed-code"
+              class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600"
+            />
+            <button id="copy-embed" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Copy</button>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">Public URL: <a href={`/f/${form.slug}`} class="text-pounce-orange hover:underline">https://www.pouncefirst.com/f/{form.slug}</a></p>
+        </div>
+
+        <!-- Edit Form (same structure as new, pre-filled) -->
+        <div id="error-banner" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600"></p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Form Details</h2>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input type="text" id="form-name" value={form.name} class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+                  <input type="text" id="form-slug" value={form.slug} readonly class="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-mono text-gray-500" />
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold font-heading text-charcoal">Fields</h2>
+                <div class="flex gap-2">
+                  <button id="add-text" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Text</button>
+                  <button id="add-email" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Email</button>
+                  <button id="add-textarea" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Textarea</button>
+                  <button id="add-tel" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Phone</button>
+                  <button id="add-select" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Select</button>
+                  <button id="add-checkbox" class="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">+ Checkbox</button>
+                </div>
+              </div>
+
+              <div id="fields-list" class="space-y-3"></div>
+              <p id="no-fields" class="text-sm text-gray-400 text-center py-8 hidden">No fields yet. Add one above.</p>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Settings</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Submit Message</label>
+                  <input type="text" id="submit-message" value={form.submitMessage || ''} class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Redirect URL (optional)</label>
+                  <input type="text" id="redirect-url" value={form.redirectUrl || ''} class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
+                </div>
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" id="form-active" checked={form.active} class="w-4 h-4 rounded border-gray-300 text-pounce-orange focus:ring-pounce-orange" />
+                  <label for="form-active" class="text-sm text-gray-700">Active</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3">
+              <button id="delete-form-btn" class="px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors">Delete Form</button>
+              <button id="save-btn" class="px-6 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Save Changes</button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl border border-gray-200 p-6 sticky top-6">
+              <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Live Preview</h2>
+              <div id="preview-container" class="space-y-4"></div>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+  </div>
+
+  <!-- Delete Confirmation -->
+  <div id="delete-dialog" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-sm mx-4 p-6">
+      <h2 class="text-lg font-bold font-heading text-charcoal mb-1">Delete Form</h2>
+      <p class="text-sm text-gray-500 mb-5">Are you sure? This will remove the form and all submissions. This cannot be undone.</p>
+      <div class="flex items-center justify-end gap-3">
+        <button id="delete-cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-charcoal transition-colors">Cancel</button>
+        <button id="delete-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+      </div>
+    </div>
+  </div>
+</AdminLayout>
+
+<script define:vars={{ initialForm: form }}>
+  // Same field builder logic as new.astro, initialized with form data
+  let fields = (initialForm?.fields || []).map((f, i) => ({
+    id: 'field_' + i + '_' + Math.random().toString(36).substring(2, 5),
+    name: f.name,
+    type: f.type,
+    label: f.label,
+    required: f.required || false,
+    placeholder: f.placeholder || '',
+    options: f.options || undefined,
+  }));
+
+  function generateId() {
+    return 'field_' + Math.random().toString(36).substring(2, 9);
+  }
+
+  function addField(type) {
+    const field = {
+      id: generateId(),
+      name: `field_${fields.length + 1}`,
+      type,
+      label: type === 'text' ? 'Text Field' :
+             type === 'email' ? 'Email Address' :
+             type === 'textarea' ? 'Message' :
+             type === 'tel' ? 'Phone Number' :
+             type === 'select' ? 'Select Option' :
+             'Checkbox',
+      required: false,
+      placeholder: type === 'email' ? 'you@company.com' :
+                   type === 'tel' ? '(555) 123-4567' :
+                   'Enter text...',
+      options: type === 'select' ? ['Option 1', 'Option 2', 'Option 3'] : undefined,
+    };
+    fields.push(field);
+    render();
+  }
+
+  function removeField(id) {
+    fields = fields.filter(f => f.id !== id);
+    render();
+  }
+
+  function updateField(id, key, value) {
+    const field = fields.find(f => f.id === id);
+    if (field) {
+      field[key] = value;
+      render();
+    }
+  }
+
+  function moveField(id, direction) {
+    const idx = fields.findIndex(f => f.id === id);
+    if (idx === -1) return;
+    if (direction === 'up' && idx > 0) {
+      [fields[idx], fields[idx - 1]] = [fields[idx - 1], fields[idx]];
+    } else if (direction === 'down' && idx < fields.length - 1) {
+      [fields[idx], fields[idx + 1]] = [fields[idx + 1], fields[idx]];
+    }
+    render();
+  }
+
+  function renderFieldEditor(field) {
+    const optionsHtml = field.options ? field.options.map((opt, i) => `
+      <div class="flex items-center gap-2">
+        <input type="text" value="${opt}" data-field="${field.id}" data-opt-idx="${i}" class="option-input flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
+        <button data-field="${field.id}" data-remove-opt="${i}" class="text-red-400 hover:text-red-600 text-xs">&times;</button>
+      </div>
+    `).join('') : '';
+
+    return `
+      <div class="border border-gray-200 rounded-lg p-4 bg-gray-50/50" data-field-id="${field.id}">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 uppercase">${field.type}</span>
+            <input type="text" value="${field.label}" data-field="${field.id}" data-key="label" class="font-medium text-sm bg-transparent border-b border-transparent hover:border-gray-300 focus:border-pounce-orange focus:outline-none px-1" />
+          </div>
+          <div class="flex items-center gap-1">
+            <button data-move="${field.id}" data-dir="up" class="p-1 text-gray-400 hover:text-charcoal" title="Move up">&uarr;</button>
+            <button data-move="${field.id}" data-dir="down" class="p-1 text-gray-400 hover:text-charcoal" title="Move down">&darr;</button>
+            <button data-remove="${field.id}" class="p-1 text-red-400 hover:text-red-600" title="Remove">&times;</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-500">Name</label>
+            <input type="text" value="${field.name}" data-field="${field.id}" data-key="name" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Placeholder</label>
+            <input type="text" value="${field.placeholder || ''}" data-field="${field.id}" data-key="placeholder" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
+          </div>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+          <input type="checkbox" ${field.required ? 'checked' : ''} data-field="${field.id}" data-key="required" id="req-${field.id}" class="w-3.5 h-3.5" />
+          <label for="req-${field.id}" class="text-xs text-gray-600">Required</label>
+        </div>
+        ${field.type === 'select' ? `
+          <div class="mt-3">
+            <label class="text-xs text-gray-500 mb-1 block">Options</label>
+            <div class="space-y-1">${optionsHtml}</div>
+            <button data-add-opt="${field.id}" class="mt-2 text-xs text-pounce-orange hover:underline">+ Add option</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function renderPreviewField(field) {
+    const required = field.required ? ' *' : '';
+    const commonClasses = 'w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange';
+
+    switch (field.type) {
+      case 'textarea':
+        return `
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
+            <textarea placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} class="${commonClasses} min-h-[100px] resize-y"></textarea>
+          </div>
+        `;
+      case 'select':
+        return `
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
+            <select ${field.required ? 'required' : ''} class="${commonClasses} bg-white">
+              <option value="">Select...</option>
+              ${(field.options || []).map(o => `<option>${o}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      case 'checkbox':
+        return `
+          <div class="flex items-center gap-2">
+            <input type="checkbox" ${field.required ? 'required' : ''} class="w-4 h-4 rounded border-gray-300 text-pounce-orange focus:ring-pounce-orange" />
+            <label class="text-sm text-gray-700">${field.label}${required}</label>
+          </div>
+        `;
+      default:
+        return `
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
+            <input type="${field.type}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} class="${commonClasses}" />
+          </div>
+        `;
+    }
+  }
+
+  function render() {
+    const list = document.getElementById('fields-list');
+    const noFields = document.getElementById('no-fields');
+    const preview = document.getElementById('preview-container');
+
+    if (fields.length === 0) {
+      if (list) list.innerHTML = '';
+      if (noFields) noFields.style.display = 'block';
+      if (preview) preview.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Add fields to see preview</p>';
+      return;
+    }
+
+    if (noFields) noFields.style.display = 'none';
+    if (list) list.innerHTML = fields.map(renderFieldEditor).join('');
+    if (preview) preview.innerHTML = fields.map(renderPreviewField).join('') + `
+      <button class="w-full py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium">Submit</button>
+    `;
+
+    document.querySelectorAll('[data-field]').forEach(el => {
+      const fieldId = el.dataset.field;
+      const key = el.dataset.key;
+      if (key === 'required') {
+        el.addEventListener('change', (e) => {
+          updateField(fieldId, 'required', e.target.checked);
+        });
+      } else {
+        el.addEventListener('input', (e) => {
+          updateField(fieldId, key, e.target.value);
+        });
+      }
+    });
+
+    document.querySelectorAll('[data-remove]').forEach(el => {
+      el.addEventListener('click', () => removeField(el.dataset.remove));
+    });
+
+    document.querySelectorAll('[data-move]').forEach(el => {
+      el.addEventListener('click', () => moveField(el.dataset.move, el.dataset.dir));
+    });
+
+    document.querySelectorAll('[data-add-opt]').forEach(el => {
+      el.addEventListener('click', () => {
+        const field = fields.find(f => f.id === el.dataset.addOpt);
+        if (field && field.options) {
+          field.options.push(`Option ${field.options.length + 1}`);
+          render();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-remove-opt]').forEach(el => {
+      el.addEventListener('click', () => {
+        const field = fields.find(f => f.id === el.dataset.field);
+        if (field && field.options) {
+          field.options.splice(parseInt(el.dataset.removeOpt), 1);
+          render();
+        }
+      });
+    });
+
+    document.querySelectorAll('.option-input').forEach(el => {
+      el.addEventListener('input', () => {
+        const field = fields.find(f => f.id === el.dataset.field);
+        if (field && field.options) {
+          field.options[parseInt(el.dataset.optIdx)] = el.value;
+          render();
+        }
+      });
+    });
+  }
+
+  // Init
+  render();
+
+  // Add field buttons
+  document.getElementById('add-text')?.addEventListener('click', () => addField('text'));
+  document.getElementById('add-email')?.addEventListener('click', () => addField('email'));
+  document.getElementById('add-textarea')?.addEventListener('click', () => addField('textarea'));
+  document.getElementById('add-tel')?.addEventListener('click', () => addField('tel'));
+  document.getElementById('add-select')?.addEventListener('click', () => addField('select'));
+  document.getElementById('add-checkbox')?.addEventListener('click', () => addField('checkbox'));
+
+  // Copy embed
+  document.getElementById('copy-embed')?.addEventListener('click', () => {
+    const input = document.getElementById('embed-code');
+    if (input) {
+      input.select();
+      document.execCommand('copy');
+    }
+  });
+
+  // Save
+  document.getElementById('save-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('form-name')?.value;
+    const submitMessage = document.getElementById('submit-message')?.value;
+    const redirectUrl = document.getElementById('redirect-url')?.value;
+    const active = document.getElementById('form-active')?.checked;
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch(`/api/admin/forms/${initialForm.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          fields: fields.map(f => ({
+            name: f.name,
+            type: f.type,
+            label: f.label,
+            required: f.required,
+            placeholder: f.placeholder,
+            options: f.options,
+          })),
+          submitMessage,
+          redirectUrl,
+          active,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const errorBanner = document.getElementById('error-banner');
+        if (errorBanner) {
+          errorBanner.querySelector('p').textContent = data.error || 'Failed to save form';
+          errorBanner.classList.remove('hidden');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+    } catch (err) {
+      const errorBanner = document.getElementById('error-banner');
+      if (errorBanner) {
+        errorBanner.querySelector('p').textContent = 'Network error. Please try again.';
+        errorBanner.classList.remove('hidden');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    }
+  });
+
+  // Delete
+  document.getElementById('delete-form-btn')?.addEventListener('click', () => {
+    const dialog = document.getElementById('delete-dialog');
+    dialog.classList.remove('hidden');
+    dialog.classList.add('flex');
+  });
+
+  document.getElementById('delete-cancel')?.addEventListener('click', () => {
+    const dialog = document.getElementById('delete-dialog');
+    dialog.classList.add('hidden');
+    dialog.classList.remove('flex');
+  });
+
+  document.getElementById('delete-confirm')?.addEventListener('click', async () => {
+    const btn = document.getElementById('delete-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+      const res = await fetch(`/api/admin/forms/${initialForm.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        window.location.href = '/admin/forms';
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete form');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    } catch (err) {
+      alert('Network error');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  });
+</script>

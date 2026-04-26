@@ -16,6 +16,15 @@ const statusGroups = allLeads.reduce((acc, lead) => {
 
 const statusBreakdown = Object.entries(statusGroups).map(([status, count]) => ({ status, count }));
 
+// Source breakdown (computed in frontmatter to avoid JSX type assertion in template)
+const sourceBreakdown = Object.entries(
+  allLeads.reduce((acc: Record<string, number>, lead) => {
+    const source = lead.source ?? 'unknown';
+    acc[source] = (acc[source] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>)
+).map(([source, count]: [string, number]) => ({ source, count }));
+
 // Recent events (last 50)
 const recentEvents = await db.select().from(events).orderBy(desc(events.createdAt)).limit(50);
 
@@ -127,12 +136,7 @@ const statusLabels: Record<string, string> = {
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Leads by Source</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Object.entries(
-            allLeads.reduce((acc, lead) => {
-              acc[lead.source] = (acc[lead.source] || 0) + 1;
-              return acc;
-            }, {} as Record<string, number>)
-          ).map(([source, count]) => (
+          {sourceBreakdown.map(({ source, count }) => (
             <div class="text-center p-4 bg-gray-50 rounded-lg">
               <p class="text-2xl font-bold text-charcoal">{count}</p>
               <p class="text-sm text-gray-500 capitalize">{source}</p>

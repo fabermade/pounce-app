@@ -4,20 +4,32 @@ import AdminLayout from '../../../components/admin/AdminLayout';
 
 const { id } = Astro.params;
 let form: any = null;
+let stats: any = null;
 let error: string | null = null;
 
 try {
-  const res = await fetch(`${Astro.url.origin}/api/admin/forms/${id}`, {
-    headers: { 'Cookie': Astro.request.headers.get('cookie') || '' }
-  });
-  if (res.ok) {
-    const data = await res.json();
+  const [formRes, statsRes] = await Promise.all([
+    fetch(`${Astro.url.origin}/api/admin/forms/${id}`, {
+      headers: { 'Cookie': Astro.request.headers.get('cookie') || '' }
+    }),
+    fetch(`${Astro.url.origin}/api/admin/forms/${id}/stats`, {
+      headers: { 'Cookie': Astro.request.headers.get('cookie') || '' }
+    })
+  ]);
+
+  if (formRes.ok) {
+    const data = await formRes.json();
     form = data.form;
   } else {
     error = 'Failed to load form';
   }
+
+  if (statsRes.ok) {
+    stats = await statsRes.json();
+  }
 } catch (e) {
   error = 'Failed to load form';
+}
 }
 ---
 
@@ -38,6 +50,61 @@ try {
 
     {form && (
       <>
+        <!-- Stats Card -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <p class="text-sm text-gray-500 mb-1">Views</p>
+            <p class="text-3xl font-bold font-heading text-charcoal">{stats?.views ?? form?.views ?? 0}</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <p class="text-sm text-gray-500 mb-1">Submissions</p>
+            <p class="text-3xl font-bold font-heading text-charcoal">{stats?.submissions ?? 0}</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <p class="text-sm text-gray-500 mb-1">Conversion Rate</p>
+            <p class="text-3xl font-bold font-heading text-charcoal">{stats?.conversionRate ?? '0%'}</p>
+          </div>
+        </div>
+
+        <!-- Recent Submissions -->
+        {stats?.recentSubmissions && stats.recentSubmissions.length > 0 && (
+          <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Recent Submissions</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="border-b border-gray-100">
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase py-3 px-4">Date</th>
+                    <th class="text-left text-xs font-medium text-gray-500 uppercase py-3 px-4">Data</th>
+                    <th class="text-right text-xs font-medium text-gray-500 uppercase py-3 px-4">Lead</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  {stats.recentSubmissions.map((sub: any) => (
+                    <tr class="hover:bg-gray-50">
+                      <td class="py-3 px-4 text-sm text-gray-600">
+                        {new Date(sub.createdAt).toLocaleDateString()}
+                      </td>
+                      <td class="py-3 px-4 text-sm text-gray-600">
+                        {Object.entries(sub.data || {}).map(([k, v]) => (
+                          <span class="inline-block mr-3"><strong>{k}:</strong> {String(v)}</span>
+                        ))}
+                      </td>
+                      <td class="py-3 px-4 text-right text-sm">
+                        {sub.leadId ? (
+                          <a href={`/admin/conversations?leadId=${sub.leadId}`} class="text-pounce-orange hover:underline">View Lead</a>
+                        ) : (
+                          <span class="text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <!-- Embed Code Card -->
         <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <div class="flex items-center justify-between mb-4">
@@ -51,17 +118,44 @@ try {
               {form.active ? 'Active' : 'Inactive'}
             </span>
           </div>
-          <div class="flex items-center gap-2">
-            <input
-              type="text"
-              readonly
-              value={`<script src="https://www.pouncefirst.com/api/f/${form.slug}/embed.js"></script>`}
-              id="embed-code"
-              class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600"
-            />
-            <button id="copy-embed" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Copy</button>
+          <div class="flex items-center gap-3 mb-4">
+            <button id="open-embed-modal" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">
+              Get Embed Code
+            </button>
+            <a
+              href={`/f/${form.slug}`}
+              target="_blank"
+              class="px-4 py-2.5 border border-gray-200 text-charcoal rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Preview
+            </a>
           </div>
-          <p class="text-xs text-gray-400 mt-2">Public URL: <a href={`/f/${form.slug}`} class="text-pounce-orange hover:underline">https://www.pouncefirst.com/f/{form.slug}</a></p>
+          <p class="text-xs text-gray-400">
+            Public URL:<span class="text-pounce-orange"> https://www.pouncefirst.com/f/{form.slug}</span>
+          </p>
+        </div>
+
+        <!-- Embed Modal -->
+        <div id="embed-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+          <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-lg mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold font-heading text-charcoal">Embed Code</h2>
+              <button id="close-embed-modal" class="text-gray-400 hover:text-charcoal">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">Copy the script below and paste it into your website HTML.</p>
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+              <code class="text-sm font-mono text-charcoal break-all">
+                &lt;script src="https://www.pouncefirst.com/api/f/{form.slug}/embed.js"&gt;&lt;/script&gt;
+              </code>
+            </div>
+            <button id="copy-embed" class="w-full px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">
+              Copy to Clipboard
+            </button>
+          </div>
         </div>
 
         <!-- Edit Form (same structure as new, pre-filled) -->
@@ -126,10 +220,21 @@ try {
             </div>
           </div>
 
-          <div class="lg:col-span-1">
+          <div class="lg:col-span-1 space-y-6">
+            <!-- Live Preview Card -->
             <div class="bg-white rounded-xl border border-gray-200 p-6 sticky top-6">
-              <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Live Preview</h2>
-              <div id="preview-container" class="space-y-4"></div>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold font-heading text-charcoal">Live Preview</h2>
+                <a href={`/f/${form.slug}`} target="_blank" class="text-xs text-pounce-orange hover:underline">Open in new tab</a>
+              </div>
+              <div class="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                <iframe
+                  src={`/f/${form.slug}`}
+                  class="w-full h-[400px]"
+                  title={`Preview of ${form.name}`}
+                  sandbox="allow-forms allow-scripts"
+                ></iframe>
+              </div>
             </div>
           </div>
         </div>
@@ -381,10 +486,35 @@ try {
 
   // Copy embed
   document.getElementById('copy-embed')?.addEventListener('click', () => {
-    const input = document.getElementById('embed-code');
-    if (input) {
-      input.select();
-      document.execCommand('copy');
+    const code = `<script src="https://www.pouncefirst.com/api/f/${initialForm.slug}/embed.js"></script>`;
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('copy-embed');
+      if (btn) {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = originalText, 2000);
+      }
+    });
+  });
+
+  // Embed modal
+  const embedModal = document.getElementById('embed-modal');
+  document.getElementById('open-embed-modal')?.addEventListener('click', () => {
+    if (embedModal) {
+      embedModal.classList.remove('hidden');
+      embedModal.classList.add('flex');
+    }
+  });
+  document.getElementById('close-embed-modal')?.addEventListener('click', () => {
+    if (embedModal) {
+      embedModal.classList.add('hidden');
+      embedModal.classList.remove('flex');
+    }
+  });
+  embedModal?.addEventListener('click', (e) => {
+    if (e.target === embedModal) {
+      embedModal.classList.add('hidden');
+      embedModal.classList.remove('flex');
     }
   });
 

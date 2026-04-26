@@ -1,6 +1,6 @@
 ---
-// Integrations section — shows provider status, masked keys, fromEmail, model selector
-// Props: providers config + env status
+// Integrations section — shows provider status, masked keys, fromEmail, model selector, inbox provider
+// Props: providers config + env status + inbox status
 
 interface Props {
   llm?: string;
@@ -10,6 +10,9 @@ interface Props {
   llmBaseUrl?: string;
   llmKeySet?: boolean;
   emailKeySet?: boolean;
+  inboxProvider?: string;
+  inboxAuthenticated?: boolean;
+  inboxLastSync?: string;
 }
 
 const {
@@ -20,6 +23,9 @@ const {
   llmBaseUrl = '',
   llmKeySet = false,
   emailKeySet = false,
+  inboxProvider = '',
+  inboxAuthenticated = false,
+  inboxLastSync = '',
 } = Astro.props;
 ---
 
@@ -144,6 +150,85 @@ const {
       />
       <p class="text-xs text-gray-400 mt-1">The address your AI will send emails from.</p>
     </div>
+
+    <hr class="border-gray-100" />
+
+    <!-- Inbox Provider -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Inbox Provider</label>
+      <div class="flex items-start gap-4">
+        <div class="flex-1">
+          <select
+            id="inbox-provider-select"
+            name="providers.inbox"
+            class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+          >
+            <option value="" selected={!inboxProvider}>None (outbound only)</option>
+            <option value="resend" selected={inboxProvider === 'resend'}>Resend (Webhooks)</option>
+            <option value="gmail" selected={inboxProvider === 'gmail'}>Gmail</option>
+            <option value="outlook" selected={inboxProvider === 'outlook'}>Outlook</option>
+          </select>
+          <p class="text-xs text-gray-400 mt-1"></p>
+        </div>
+        <div class="pt-1">
+          <span id="inbox-status-badge" class={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+            inboxAuthenticated ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            <span class={`w-1.5 h-1.5 rounded-full ${inboxAuthenticated ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            {inboxAuthenticated ? 'Connected' : 'Not connected'}
+          </span>
+        </div>
+      </div>
+
+      <!-- Inbox Actions -->
+      <div id="inbox-actions" class="mt-3 flex items-center gap-3">
+        <div id="oauth-connect-buttons" class={`${inboxProvider === 'resend' || !inboxProvider ? 'hidden' : 'flex'} items-center gap-3`}>
+          <a
+            id="connect-gmail-btn"
+            href="/api/auth/gmail"
+            class={`px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors ${inboxProvider === 'gmail' ? '' : 'hidden'}`}
+          >
+            Connect Gmail
+          </a>
+          <a
+            id="connect-outlook-btn"
+            href="/api/auth/outlook"
+            class={`px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors ${inboxProvider === 'outlook' ? '' : 'hidden'}`}
+          >
+            Connect Outlook
+          </a>
+        </div>
+
+        <button
+          id="disconnect-inbox-btn"
+          class={`px-4 py-2 text-sm text-red-600 hover:text-red-700 transition-colors ${inboxAuthenticated ? 'inline-flex' : 'hidden'}`}
+        >
+          Disconnect
+        </button>
+      </div>
+
+      <p id="inbox-last-sync" class={`text-xs text-gray-400 mt-2 ${inboxLastSync ? '' : 'hidden'}`}>
+        Last synced: {inboxLastSync ? new Date(inboxLastSync).toLocaleString() : ''}
+      </p>
+
+      <!-- Resend Webhook Info -->
+      <div id="resend-webhook-info" class={`mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 ${inboxProvider === 'resend' ? '' : 'hidden'}`}>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Webhook URL</label>
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            readonly
+            value="https://www.pouncefirst.com/api/webhook/resend"
+            class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
+          />
+          <button
+            id="copy-resend-webhook"
+            class="px-3 py-2 bg-charcoal text-white rounded-lg text-xs font-medium hover:bg-charcoal-light transition-colors"
+          >Copy</button>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">Paste this into your Resend inbound routing settings.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -201,4 +286,92 @@ const {
     updateProviderUI(llmProviderSelect.value);
     fetchModels(llmProviderSelect.value);
   }
+
+  // Inbox provider UI
+  const inboxSelect = document.getElementById('inbox-provider-select') as HTMLSelectElement;
+  const oauthButtons = document.getElementById('oauth-connect-buttons');
+  const connectGmailBtn = document.getElementById('connect-gmail-btn');
+  const connectOutlookBtn = document.getElementById('connect-outlook-btn');
+  const disconnectBtn = document.getElementById('disconnect-inbox-btn');
+  const inboxStatusBadge = document.getElementById('inbox-status-badge');
+  const resendWebhookInfo = document.getElementById('resend-webhook-info');
+
+  function updateInboxUI() {
+    const provider = inboxSelect?.value || '';
+
+    if (provider === 'gmail' || provider === 'outlook') {
+      oauthButtons?.classList.remove('hidden');
+      oauthButtons?.classList.add('flex');
+      connectGmailBtn?.classList.toggle('hidden', provider !== 'gmail');
+      connectOutlookBtn?.classList.toggle('hidden', provider !== 'outlook');
+    } else {
+      oauthButtons?.classList.add('hidden');
+      oauthButtons?.classList.remove('flex');
+    }
+
+    resendWebhookInfo?.classList.toggle('hidden', provider !== 'resend');
+  }
+
+  inboxSelect?.addEventListener('change', updateInboxUI);
+  updateInboxUI();
+
+  disconnectBtn?.addEventListener('click', async () => {
+    if (!confirm('Disconnect inbox provider? This will stop receiving inbound emails.')) return;
+    disconnectBtn.disabled = true;
+    disconnectBtn.textContent = 'Disconnecting...';
+
+    try {
+      const res = await fetch('/api/admin/inbox/disconnect', { method: 'POST' });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to disconnect');
+        disconnectBtn.disabled = false;
+        disconnectBtn.textContent = 'Disconnect';
+      }
+    } catch (err) {
+      alert('Network error');
+      disconnectBtn.disabled = false;
+      disconnectBtn.textContent = 'Disconnect';
+    }
+  });
+
+  document.getElementById('copy-resend-webhook')?.addEventListener('click', () => {
+    const input = document.querySelector('#resend-webhook-info input') as HTMLInputElement;
+    if (input) {
+      input.select();
+      document.execCommand('copy');
+    }
+  });
+
+  async function checkInboxStatus() {
+    try {
+      const res = await fetch('/api/admin/inbox');
+      if (res.ok) {
+        const data = await res.json();
+        if (inboxStatusBadge) {
+          const isConnected = data.authenticated;
+          inboxStatusBadge.className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+            isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`;
+          inboxStatusBadge.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}"></span>
+            ${isConnected ? 'Connected' : 'Not connected'}
+          `;
+
+          if (isConnected && disconnectBtn) {
+            disconnectBtn.classList.remove('hidden');
+            disconnectBtn.classList.add('inline-flex');
+          } else if (disconnectBtn) {
+            disconnectBtn.classList.add('hidden');
+            disconnectBtn.classList.remove('inline-flex');
+          }
+        }
+      }
+    } catch (err) {
+      // Silently fail
+    }
+  }
+  checkInboxStatus();
 </script>

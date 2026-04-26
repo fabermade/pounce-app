@@ -46,8 +46,8 @@ export const GET: APIRoute = async () => {
       services: [],
       faq: [],
       escalation: { triggerPhrases: [], notifyEmail: '' },
-      booking: { url: '', cta: '', timing: 'after_second_exchange' },
-      providers: { llm: 'openai', llmApiKey: 'env:LLM_API_KEY', llmModel: '', email: 'resend', emailApiKey: 'env:EMAIL_API_KEY', fromEmail: 'hello@pouncefirst.com', inbox: '' },
+      booking: { url: '', cta: 'Book a Call', timing: 'after_second_exchange', provider: 'calcom' },
+      providers: { llm: 'openai', llmApiKey: 'env:LLM_API_KEY', llmModel: '', email: 'resend', emailApiKey: 'env:EMAIL_API_KEY', fromEmail: 'hello@pouncefirst.com', inbox: '', booking: 'calcom', bookingWebhookSecret: '' },
       agent: { enabled: false, webhookUrl: '' },
     };
 
@@ -63,8 +63,10 @@ export const GET: APIRoute = async () => {
       const prov = safeConfig.providers as Record<string, unknown>;
       if (prov.llmApiKey) prov.llmApiKeySet = true;
       if (prov.emailApiKey) prov.emailKeySet = true;
+      if (prov.bookingWebhookSecret) prov.bookingWebhookSecretSet = true;
       prov.llmApiKey = prov.llmApiKey ? '••••••••' : '';
       prov.emailApiKey = prov.emailApiKey ? '••••••••' : '';
+      prov.bookingWebhookSecret = prov.bookingWebhookSecret ? '••••••••' : '';
     }
 
     return new Response(JSON.stringify({ config: safeConfig }), {
@@ -145,7 +147,7 @@ export const PATCH: APIRoute = async ({ request }) => {
           mergedValue = { ...(existingVal as Record<string, unknown>), ...(newValue as Record<string, unknown>) };
 
           // Preserve existing API keys when new value is empty or masked placeholder
-          const secretFields = ['llmApiKey', 'emailApiKey'];
+          const secretFields = ['llmApiKey', 'emailApiKey', 'bookingWebhookSecret'];
           for (const field of secretFields) {
             if (field in (mergedValue as Record<string, unknown>)) {
               const newVal = (mergedValue as Record<string, unknown>)[field];

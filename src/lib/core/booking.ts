@@ -9,6 +9,7 @@ export interface BookingConfig {
   url: string;
   cta: string;
   timing: 'immediately' | 'after_first_exchange' | 'after_second_exchange' | 'manual';
+  provider?: 'calcom' | 'calendly' | 'none';
 }
 
 export interface BookingResult {

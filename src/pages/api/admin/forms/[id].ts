@@ -27,7 +27,7 @@ const updateFormSchema = z.object({
   name: z.string().min(1).optional(),
   fields: z.array(formFieldSchema).min(1).optional(),
   submitMessage: z.string().optional(),
-  redirectUrl: z.string().url().optional().or(z.literal('')).optional(),
+  redirectUrl: z.string().url().refine(url => url.startsWith('https://'), { message: 'Redirect URL must use https://' }).optional().or(z.literal('')).optional(),
   active: z.boolean().optional(),
 });
 

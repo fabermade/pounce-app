@@ -22,6 +22,15 @@ import type { APIRoute } from 'astro';
 import { db, forms } from '@/lib/db/index.js';
 import { eq } from 'drizzle-orm';
 
+// Sanitize strings for embedding in JS template literals (prevent XSS)
+function sanitizeForScript(str: string): string {
+  return str
+    .replace(/</g, '\\x3c')
+    .replace(/>/g, '\\x3e')
+    .replace(/`/g, '\\x60')
+    .replace(/\$/g, '\\x24');
+}
+
 export const GET: APIRoute = async ({ params, url }) => {
   const slug = params.slug;
   if (!slug) {
@@ -55,15 +64,17 @@ export const GET: APIRoute = async ({ params, url }) => {
   const APP_URL = import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://www.pouncefirst.com';
   const submitUrl = `${APP_URL}/api/f/${slug}`;
 
-  // Read customization from query params or use defaults
-  const primaryColor = url.searchParams.get('primaryColor') ?? '#1E1E1E';
-  const borderRadius = url.searchParams.get('borderRadius') ?? '8';
+  // Read customization from query params or use defaults (sanitize for script context)
+  const primaryColor = sanitizeForScript(url.searchParams.get('primaryColor') ?? '#1E1E1E');
+  const borderRadius = sanitizeForScript(url.searchParams.get('borderRadius') ?? '8');
 
-  // Escape form data for embedding in JS
-  const formName = form.name.replace(/'/g, "\\'");
-  const submitMessage = (form.submitMessage ?? 'Thank you! We\'ll be in touch soon.').replace(/'/g, "\\'");
+  // Sanitize form data for embedding in JS (prevent XSS via </script> or template literals)
+  const formName = sanitizeForScript(form.name);
+  const submitMessage = sanitizeForScript(form.submitMessage ?? "Thank you! We'll be in touch soon.");
   const redirectUrl = form.redirectUrl ?? '';
-  const fieldsJson = JSON.stringify(fields);
+  const fieldsJson = JSON.stringify(fields)
+    .replace(/</g, '\\x3c')
+    .replace(/>/g, '\\x3e');
 
   // Build the embed script — self-contained, no external dependencies
   const script = `(function(){
@@ -215,15 +226,37 @@ function showLoading() {
 }
 
 function showSuccess() {
-  if (REDIRECT_URL) {
+  if (REDIRECT_URL && REDIRECT_URL.startsWith('https://')) {
     window.location.href = REDIRECT_URL;
     return;
   }
-  container.innerHTML = '<div class="pounce-success"><h3>✓ ' + SUBMIT_MSG + '</h3><p>We\\'ll get back to you soon.</p></div>';
+  container.innerHTML = '';
+  var wrap = document.createElement('div');
+  wrap.className = 'pounce-success';
+  var h3 = document.createElement('h3');
+  h3.textContent = '\\u2713 ' + SUBMIT_MSG;
+  var p = document.createElement('p');
+  p.textContent = "We'll get back to you soon.";
+  wrap.appendChild(h3);
+  wrap.appendChild(p);
+  container.appendChild(wrap);
 }
 
 function showError(msg) {
-  container.innerHTML = '<div class="pounce-error"><h3>Something went wrong</h3><p>' + (msg || 'Please try again.') + '</p><button onclick="window.__pounceRetry()">Try Again</button></div>';
+  container.innerHTML = '';
+  var wrap = document.createElement('div');
+  wrap.className = 'pounce-error';
+  var h3 = document.createElement('h3');
+  h3.textContent = 'Something went wrong';
+  var p = document.createElement('p');
+  p.textContent = msg || 'Please try again.';
+  var btn = document.createElement('button');
+  btn.textContent = 'Try Again';
+  btn.onclick = function() { window.__pounceRetry(); };
+  wrap.appendChild(h3);
+  wrap.appendChild(p);
+  wrap.appendChild(btn);
+  container.appendChild(wrap);
 }
 
 window.__pounceRetry = render;

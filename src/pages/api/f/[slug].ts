@@ -12,7 +12,7 @@
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, forms, formSubmissions } from '@/lib/db/index.js';
+import { db, forms, formSubmissions, leads, conversations } from '@/lib/db/index.js';
 import { eq } from 'drizzle-orm';
 import { addMessage } from '@/lib/core/conversation.js';
 import { runResponsePipeline } from '@/lib/core/response-pipeline.js';
@@ -161,15 +161,11 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
   // 5. Create lead via inbound pipeline
   try {
-    // Import the lead processing logic
-    const { db: dbClient, leads, conversations } = await import('@/lib/db/index.js');
-    const { eq: eqOp } = await import('drizzle-orm');
-
     // Check for existing lead
-    const [existingLead] = await dbClient
+    const [existingLead] = await db
       .select()
       .from(leads)
-      .where(eqOp(leads.email, email))
+      .where(eq(leads.email, email))
       .limit(1);
 
     let leadId: string;
@@ -177,16 +173,16 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
     if (existingLead) {
       leadId = existingLead.id;
-      const [existingConv] = await dbClient
+      const [existingConv] = await db
         .select()
         .from(conversations)
-        .where(eqOp(conversations.leadId, leadId))
+        .where(eq(conversations.leadId, leadId))
         .limit(1);
 
       if (existingConv) {
         conversationId = existingConv.id;
       } else {
-        const [conv] = await dbClient
+        const [conv] = await db
           .insert(conversations)
           .values({ leadId, inboxProvider: 'form', awaitingReply: true })
           .returning();
@@ -195,7 +191,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
       await addMessage(conversationId, 'user', 'customer', message || 'Form submission', { formSlug: slug });
     } else {
-      const [newLead] = await dbClient
+      const [newLead] = await db
         .insert(leads)
         .values({
           source: 'form',
@@ -209,7 +205,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
         .returning();
       leadId = newLead!.id;
 
-      const [conv] = await dbClient
+      const [conv] = await db
         .insert(conversations)
         .values({ leadId, inboxProvider: 'form', awaitingReply: true })
         .returning();

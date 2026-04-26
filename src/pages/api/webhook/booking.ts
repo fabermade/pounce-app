@@ -41,10 +41,12 @@ function verifyCalcomSignature(
 
 function verifyCalendlySignature(
   signature: string,
+  rawBody: string,
   secret: string,
 ): boolean {
   // Calendly uses HMAC-SHA256 with the webhook signing key
   // Signature format: "t=timestamp,v1=signature"
+  // Payload = timestamp.rawBody (NOT timestamp.secret)
   const parts = signature.split(',');
   const tPart = parts.find(p => p.startsWith('t='));
   const v1Part = parts.find(p => p.startsWith('v1='));
@@ -53,8 +55,8 @@ function verifyCalendlySignature(
   const timestamp = tPart.slice(2);
   const signatureValue = v1Part.slice(3);
 
-  // Reconstruct: timestamp.payload.secret
-  const payload = `${timestamp}.${secret}`;
+  // Reconstruct: timestamp.rawBody
+  const payload = `${timestamp}.${rawBody}`;
   const expected = crypto
     .createHmac('sha256', secret)
     .update(payload)
@@ -80,10 +82,20 @@ export const POST: APIRoute = async ({ request, url }) => {
   const providers = (providersConfig?.value ?? {}) as Record<string, unknown>;
   const providerName = providerParam ?? (providers.booking as string) ?? 'calcom';
 
-  // 2. Verify webhook signature (if secret is configured)
+  // 2. Read raw body first (always needed for signature verification or parsing)
+  const rawBody = await request.text();
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // 3. Verify webhook signature (if secret is configured)
   const webhookSecret = resolveEnvKey(String(providers.bookingWebhookSecret ?? ''));
   if (webhookSecret) {
-    const rawBody = await request.text();
     const signature = request.headers.get('cal-signature') ?? request.headers.get('calendly-webhook-signature') ?? '';
 
     if (providerName === 'calcom' && signature) {
@@ -93,30 +105,11 @@ export const POST: APIRoute = async ({ request, url }) => {
         });
       }
     } else if (providerName === 'calendly' && signature) {
-      if (!verifyCalendlySignature(signature, webhookSecret)) {
+      if (!verifyCalendlySignature(signature, rawBody, webhookSecret)) {
         return new Response(JSON.stringify({ error: 'Invalid signature' }), {
           status: 401, headers: { 'Content-Type': 'application/json' },
         });
       }
-    }
-
-    // Re-parse the body since we consumed it for signature verification
-    var body: unknown;
-    try {
-      body = JSON.parse(rawBody);
-    } catch {
-      return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
-      });
-    }
-  } else {
-    // No secret configured — skip verification
-    try {
-      body = await request.json();
-    } catch {
-      return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
-      });
     }
   }
 
@@ -189,7 +182,7 @@ export const POST: APIRoute = async ({ request, url }) => {
     isNewLead,
   });
 
-  // 6. Add booking message to conversation (if one exists for this lead)
+  // 6. Add booking message to conversation
   const [existingConv] = await db
     .select()
     .from(conversations)
@@ -249,7 +242,7 @@ export const POST: APIRoute = async ({ request, url }) => {
     });
   }
 
-  // 7. Transition lead status (emits event for analytics)
+  // 7. Transition lead status
   if (isNewLead) {
     await transitionLeadStatus(leadId, 'scheduled', {
       source: 'booking_webhook',

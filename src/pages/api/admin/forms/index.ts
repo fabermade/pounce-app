@@ -26,7 +26,7 @@ const createFormSchema = z.object({
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
   fields: z.array(formFieldSchema).min(1, 'At least one field is required'),
   submitMessage: z.string().optional(),
-  redirectUrl: z.string().url().optional().or(z.literal('')),
+  redirectUrl: z.string().url().refine(url => url.startsWith('https://'), { message: 'Redirect URL must use https://' }).optional().or(z.literal('')),
   active: z.boolean().optional().default(true),
 });
 

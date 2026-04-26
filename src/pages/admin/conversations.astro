@@ -84,7 +84,7 @@ const statusLabels: Record<string, string> = {
                   return (
                     <a
                       href={`/admin/conversations?leadId=${conv.id}`}
-                      class={`block p-4 hover:bg-gray-50 transition-colors ${conv.status === 'new' ? 'bg-blue-50/50' : ''}`}
+                      class={`block p-4 hover:bg-gray-50 transition-colors ${(conv.lead as any).status === 'new' ? 'bg-blue-50/50' : ''}`}
                     >
                       <div class="flex items-start justify-between mb-2">
                         <div class="flex items-center gap-2">
@@ -104,8 +104,8 @@ const statusLabels: Record<string, string> = {
                         <>
                           <p class="text-sm text-gray-600 line-clamp-2">{lastMessage.content}</p>
                           <div class="mt-2 flex items-center gap-2">
-                            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status] || 'bg-gray-100 text-gray-800'}`}>
-                              {statusLabels[conv.status] || conv.status}
+                            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[(conv.lead as any).status] || 'bg-gray-100 text-gray-800'}`}>
+                              {statusLabels[(conv.lead as any).status] || (conv.lead as any).status || 'Unknown'}
                             </span>
                             <span class="text-xs text-gray-400">
                               {new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -138,9 +138,7 @@ const statusLabels: Record<string, string> = {
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedConv.status] || 'bg-gray-100 text-gray-800'}`}>
-                      {statusLabels[selectedConv.status] || selectedConv.status}
-                    </span>
+                    {<!-- Status badge removed — status lives on leads, not conversations -->}
                   </div>
                 </div>
 

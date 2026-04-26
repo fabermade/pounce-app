@@ -149,9 +149,13 @@ import AdminLayout from '../../../components/admin/AdminLayout';
     const idx = fields.findIndex(f => f.id === id);
     if (idx === -1) return;
     if (direction === 'up' && idx > 0) {
-      [fields[idx], fields[idx - 1]] = [fields[idx - 1], fields[idx]];
+      const a = fields[idx]!, b = fields[idx - 1]!;
+      fields[idx] = b;
+      fields[idx - 1] = a;
     } else if (direction === 'down' && idx < fields.length - 1) {
-      [fields[idx], fields[idx + 1]] = [fields[idx + 1], fields[idx]];
+      const a = fields[idx]!, b = fields[idx + 1]!;
+      fields[idx] = b;
+      fields[idx + 1] = a;
     }
     render();
   }

@@ -1,0 +1,60 @@
+---
+import AdminPage from '../../layouts/AdminPage.astro';
+import AdminLayout from '../../components/admin/AdminLayout';
+
+const params = Astro.url.searchParams;
+const status = params.get('status'); // 'success' | 'error'
+const errorMsg = params.get('error') || '';
+---
+
+<AdminPage title="Connect Outlook" currentPath="/admin/settings">
+  <AdminLayout currentPath="/admin/settings">
+    <div class="p-8 max-w-xl mx-auto">
+      <div class="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        {status === 'success' ? (
+          <>
+            <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <h1 class="text-lg font-bold font-heading text-charcoal mb-2">Outlook Connected!</h1>
+            <p class="text-sm text-gray-500 mb-6">Your Outlook account is now linked to Pounce. You can start receiving and responding to leads via email.</p>
+            <a href="/admin/settings" class="inline-block px-6 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Go to Settings</a>
+          </>
+        ) : status === 'error' ? (
+          <>
+            <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </div>
+            <h1 class="text-lg font-bold font-heading text-charcoal mb-2">Connection Failed</h1>
+            {errorMsg && (
+              <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-left">
+                <p class="text-sm text-red-600">{errorMsg}</p>
+              </div>
+            )}
+            <p class="text-sm text-gray-500 mb-6">We couldn't connect your Outlook account. Please try again or check your Microsoft API credentials.</p>
+            <div class="flex items-center justify-center gap-3">
+              <a href="/api/auth/outlook" class="px-6 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Retry</a>
+              <a href="/admin/settings" class="px-6 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-charcoal transition-colors">Back to Settings</a>
+            </div>
+          </>
+        ) : (
+          <>
+            <div class="w-10 h-10 border-3 border-gray-200 border-t-pounce-orange rounded-full animate-spin mx-auto mb-4"></div>
+            <h1 class="text-lg font-bold font-heading text-charcoal mb-2">Connecting Outlook...</h1>
+            <p class="text-sm text-gray-500 mb-4">Please wait while we redirect you to Microsoft to authorize access.</p>
+            <script>
+              setTimeout(() => {
+                window.location.href = '/api/auth/outlook';
+              }, 1500);
+            </script>
+          </>
+        )}
+      </div>
+    </div>
+  </AdminLayout>
+</AdminPage>

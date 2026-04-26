@@ -363,7 +363,7 @@ const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
     }
 
     // Full setup form
-    const setupForm = document.getElementById('setup-form');
+    const setupForm = document.getElementById('setup-form') as HTMLFormElement | null;
     if (setupForm) {
       setupForm.addEventListener('submit', async (e) => {
         e.preventDefault();

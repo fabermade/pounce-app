@@ -118,15 +118,18 @@ try {
 </AdminPage>
 
 <script>
-  const deleteDialog = document.getElementById('delete-dialog');
-  const deleteCancel = document.getElementById('delete-cancel');
-  const deleteConfirm = document.getElementById('delete-confirm');
+  const deleteDialog = document.getElementById('delete-dialog') as HTMLElement | null;
+  const deleteCancel = document.getElementById('delete-cancel') as HTMLElement | null;
+  const deleteConfirm = document.getElementById('delete-confirm') as HTMLButtonElement | null;
+  const deleteFormNameEl = document.getElementById('delete-form-name') as HTMLElement | null;
+  if (!deleteDialog || !deleteCancel || !deleteConfirm || !deleteFormNameEl) return;
   let deleteFormId = '';
 
   document.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      deleteFormId = btn.dataset.formId;
-      document.getElementById('delete-form-name').textContent = btn.dataset.formName;
+      const el = btn as HTMLElement;
+      deleteFormId = el.dataset.formId || '';
+      deleteFormNameEl.textContent = el.dataset.formName || '';
       deleteDialog.classList.remove('hidden');
       deleteDialog.classList.add('flex');
     });

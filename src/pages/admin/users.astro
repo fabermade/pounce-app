@@ -60,7 +60,7 @@ try {
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full bg-charcoal flex items-center justify-center text-white text-sm font-medium">
-                    {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
+                    {user.name ? (user.name[0] || '').toUpperCase() : (user.email[0] || '').toUpperCase()}
                   </div>
                   <span class="text-sm font-medium text-charcoal">{user.name || 'Unnamed'}</span>
                 </div>
@@ -225,13 +225,14 @@ try {
 
 <script>
   // Invite dialog
-  const inviteDialog = document.getElementById('invite-dialog');
-  const inviteBtn = document.getElementById('invite-btn');
-  const inviteCancel = document.getElementById('invite-cancel');
-  const inviteForm = document.getElementById('invite-form');
-  const inviteSubmit = document.getElementById('invite-submit');
-  const inviteError = document.getElementById('invite-error');
-  const inviteSuccess = document.getElementById('invite-success');
+  const inviteDialog = document.getElementById('invite-dialog') as HTMLElement | null;
+  const inviteBtn = document.getElementById('invite-btn') as HTMLElement | null;
+  const inviteCancel = document.getElementById('invite-cancel') as HTMLElement | null;
+  const inviteForm = document.getElementById('invite-form') as HTMLFormElement | null;
+  const inviteSubmit = document.getElementById('invite-submit') as HTMLButtonElement | null;
+  const inviteError = document.getElementById('invite-error') as HTMLElement | null;
+  const inviteSuccess = document.getElementById('invite-success') as HTMLElement | null;
+  if (!inviteDialog || !inviteBtn || !inviteCancel || !inviteForm || !inviteSubmit || !inviteError || !inviteSuccess) return;
 
   inviteBtn.addEventListener('click', () => {
     inviteDialog.classList.remove('hidden');
@@ -265,14 +266,17 @@ try {
 
       if (res.ok) {
         inviteSuccess.classList.remove('hidden');
-        document.getElementById('invite-url').value = data.inviteUrl;
+        const inviteUrlEl = document.getElementById('invite-url') as HTMLInputElement | null;
+        if (inviteUrlEl) inviteUrlEl.value = data.inviteUrl;
         inviteForm.reset();
       } else {
-        inviteError.querySelector('p').textContent = data.error || 'Failed to send invitation';
+        const errP = inviteError.querySelector('p');
+        if (errP) errP.textContent = data.error || 'Failed to send invitation';
         inviteError.classList.remove('hidden');
       }
     } catch (err) {
-      inviteError.querySelector('p').textContent = 'Network error. Please try again.';
+      const errP = inviteError.querySelector('p');
+      if (errP) errP.textContent = 'Network error. Please try again.';
       inviteError.classList.remove('hidden');
     } finally {
       inviteSubmit.disabled = false;
@@ -280,25 +284,34 @@ try {
     }
   });
 
-  document.getElementById('copy-invite').addEventListener('click', () => {
-    const input = document.getElementById('invite-url');
-    input.select();
-    document.execCommand('copy');
-  });
+  const copyInviteBtn = document.getElementById('copy-invite');
+  if (copyInviteBtn) {
+    copyInviteBtn.addEventListener('click', () => {
+      const input = document.getElementById('invite-url') as HTMLInputElement | null;
+      if (input) {
+        input.select();
+        document.execCommand('copy');
+      }
+    });
+  }
 
   // Edit dialog
-  const editDialog = document.getElementById('edit-dialog');
-  const editForm = document.getElementById('edit-form');
-  const editCancel = document.getElementById('edit-cancel');
-  const editSubmit = document.getElementById('edit-submit');
-  const editError = document.getElementById('edit-error');
+  const editDialog = document.getElementById('edit-dialog') as HTMLElement | null;
+  const editForm = document.getElementById('edit-form') as HTMLFormElement | null;
+  const editCancel = document.getElementById('edit-cancel') as HTMLElement | null;
+  const editSubmit = document.getElementById('edit-submit') as HTMLButtonElement | null;
+  const editError = document.getElementById('edit-error') as HTMLElement | null;
+  if (!editDialog || !editForm || !editCancel || !editSubmit || !editError) return;
 
   document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const user = JSON.parse(btn.dataset.user);
-      document.getElementById('edit-user-id').value = user.id;
-      document.getElementById('edit-name').value = user.name || '';
-      document.getElementById('edit-role').value = user.role;
+      const user = JSON.parse((btn as HTMLElement).dataset.user || '{}');
+      const userIdEl = document.getElementById('edit-user-id') as HTMLInputElement | null;
+      const nameEl = document.getElementById('edit-name') as HTMLInputElement | null;
+      const roleEl = document.getElementById('edit-role') as HTMLSelectElement | null;
+      if (userIdEl) userIdEl.value = user.id || '';
+      if (nameEl) nameEl.value = user.name || '';
+      if (roleEl) roleEl.value = user.role || '';
       editDialog.classList.remove('hidden');
       editDialog.classList.add('flex');
       editError.classList.add('hidden');
@@ -315,7 +328,8 @@ try {
     editSubmit.disabled = true;
     editSubmit.textContent = 'Saving...';
 
-    const userId = document.getElementById('edit-user-id').value;
+    const userIdEl = document.getElementById('edit-user-id') as HTMLInputElement | null;
+    const userId = userIdEl ? userIdEl.value : '';
     const formData = new FormData(editForm);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -331,13 +345,15 @@ try {
       if (res.ok) {
         window.location.reload();
       } else {
-        editError.querySelector('p').textContent = data.error || 'Failed to update user';
+        const errP = editError.querySelector('p');
+        if (errP) errP.textContent = data.error || 'Failed to update user';
         editError.classList.remove('hidden');
         editSubmit.disabled = false;
         editSubmit.textContent = 'Save';
       }
     } catch (err) {
-      editError.querySelector('p').textContent = 'Network error. Please try again.';
+      const errP = editError.querySelector('p');
+      if (errP) errP.textContent = 'Network error. Please try again.';
       editError.classList.remove('hidden');
       editSubmit.disabled = false;
       editSubmit.textContent = 'Save';
@@ -345,15 +361,18 @@ try {
   });
 
   // Delete dialog
-  const deleteDialog = document.getElementById('delete-dialog');
-  const deleteCancel = document.getElementById('delete-cancel');
-  const deleteConfirm = document.getElementById('delete-confirm');
+  const deleteDialog = document.getElementById('delete-dialog') as HTMLElement | null;
+  const deleteCancel = document.getElementById('delete-cancel') as HTMLElement | null;
+  const deleteConfirm = document.getElementById('delete-confirm') as HTMLButtonElement | null;
+  const deleteUserNameEl = document.getElementById('delete-user-name') as HTMLElement | null;
+  if (!deleteDialog || !deleteCancel || !deleteConfirm || !deleteUserNameEl) return;
   let deleteUserId = '';
 
   document.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      deleteUserId = btn.dataset.userId;
-      document.getElementById('delete-user-name').textContent = btn.dataset.userName;
+      const el = btn as HTMLElement;
+      deleteUserId = el.dataset.userId || '';
+      deleteUserNameEl.textContent = el.dataset.userName || '';
       deleteDialog.classList.remove('hidden');
       deleteDialog.classList.add('flex');
     });

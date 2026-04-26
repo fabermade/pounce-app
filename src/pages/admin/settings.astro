@@ -215,13 +215,14 @@ const emailKeySet = !!(providers.emailApiKey);
         // Parse bracket notation: services[0].name → { services: [{ name: val }] }
         const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
         if (match) {
-          const [, arrName, indexStr, field] = match;
-          const index = parseInt(indexStr!, 10);
-          if (!payload[arrName!]) payload[arrName!] = [];
-          const arr = payload[arrName!] as Array<Record<string, unknown>>;
+          const [, arrName, indexStr, field] = match as [string, string, string, string];
+          const index = parseInt(indexStr, 10);
+          if (!payload[arrName]) payload[arrName] = [];
+          const arr = payload[arrName] as Array<Record<string, unknown>>;
           // Compact sparse arrays
           while (arr.length <= index) arr.push({});
-          arr[index!][field!] = boolValue;
+          if (!arr[index]) arr[index] = {};
+          arr[index][field as string] = boolValue;
           continue;
         }
 

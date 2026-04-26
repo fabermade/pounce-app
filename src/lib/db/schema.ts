@@ -159,6 +159,7 @@ export const forms = pgTable('forms', {
   submitMessage: text('submit_message').default('Thank you! We\'ll be in touch soon.'),
   redirectUrl: text('redirect_url'),
   active: boolean('active').notNull().default(true),
+  views: integer('views').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

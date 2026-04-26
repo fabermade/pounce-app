@@ -5,11 +5,12 @@
  *
  * Resend Inbound Routing sends a POST with the parsed email when someone
  * replies to a Pounce-sent email. We:
- *   1. Verify the webhook signature
- *   2. Parse the inbound email (from, to, subject, body)
- *   3. Match to an existing lead + conversation
- *   4. Add the customer's reply as a message
- *   5. Run the AI response pipeline
+ *   1. Verify the webhook signature (if configured)
+ *   2. Parse the inbound email (extract text, strip quotes/signatures)
+ *   3. Find or create lead by sender email
+ *   4. Find or create conversation (using threading headers)
+ *   5. Append customer message
+ *   6. Run the AI response pipeline
  *
  * Resend docs: https://resend.com/docs/inbound-webhooks
  */
@@ -17,11 +18,12 @@
 import type { APIRoute } from 'astro';
 import crypto from 'node:crypto';
 import { db, leads, conversations, businessConfig } from '@/lib/db/index.js';
-import { eq, desc } from 'drizzle-orm';
-import { addMessage } from '@/lib/core/conversation.js';
+import { eq } from 'drizzle-orm';
+import { addMessage, findOrCreateConversation } from '@/lib/core/conversation.js';
 import { transitionLeadStatus, logEvent } from '@/lib/core/pipeline.js';
 import { runResponsePipeline } from '@/lib/core/response-pipeline.js';
 import { resolveEnvKey } from '@/lib/core/response-pipeline.js';
+import { parseInboundEmail } from '@/lib/core/email-parser.js';
 
 // ─── Webhook Signature Verification ──────────────────────────────
 
@@ -30,7 +32,6 @@ function verifyWebhookSignature(
   signature: string,
   secret: string,
 ): boolean {
-  // Resend uses HMAC-SHA256 for webhook signatures
   const expected = crypto
     .createHmac('sha256', secret)
     .update(payload)
@@ -39,104 +40,6 @@ function verifyWebhookSignature(
     Buffer.from(signature),
     Buffer.from(expected),
   );
-}
-
-// ─── Resend Inbound Email Schema ─────────────────────────────────
-
-interface ResendInboundEmail {
-  id: string;
-  from: string;
-  to: string[];
-  subject: string;
-  html: string;
-  text: string;
-  reply_to?: string[];
-  headers: Record<string, string>;
-}
-
-// ─── Lead Matching ───────────────────────────────────────────────
-
-/**
- * Match an inbound email to an existing lead.
- * Strategy: Look up by sender email address.
- * Returns the lead ID and most recent conversation ID, or null.
- */
-async function matchToLead(senderEmail: string): Promise<{
-  leadId: string;
-  conversationId: string;
-} | null> {
-  // Find lead by email
-  const [lead] = await db
-    .select()
-    .from(leads)
-    .where(eq(leads.email, senderEmail.toLowerCase()))
-    .limit(1);
-
-  if (!lead) return null;
-
-  // Find most recent conversation for this lead
-  const [conv] = await db
-    .select()
-    .from(conversations)
-    .where(eq(conversations.leadId, lead.id))
-    .orderBy(desc(conversations.createdAt))
-    .limit(1);
-
-  if (!conv) return null;
-
-  return { leadId: lead.id, conversationId: conv.id };
-}
-
-// ─── Extract Reply Content ───────────────────────────────────────
-
-/**
- * Extract the actual reply text from an email, stripping quoted text.
- * Uses the plain text version if available, falls back to HTML.
- * Strips common reply separator patterns.
- */
-function extractReplyContent(text: string, html: string): string {
-  const plainText = text?.trim() || stripHtml(html);
-
-  if (!plainText) return '(no content)';
-
-  // Strip common reply quote patterns
-  const lines = plainText.split('\n');
-  const replyLines: string[] = [];
-
-  for (const line of lines) {
-    // Stop at common quote indicators
-    if (
-      line.startsWith('On ') && line.includes(' wrote:') ||
-      line.startsWith('>') ||
-      line.startsWith('-----Original Message-----') ||
-      line.startsWith('-----Reply Message-----') ||
-      line.startsWith('From: ') && line.includes('@') ||
-      line.match(/^-{3,}$/) // horizontal rule separators
-    ) {
-      break;
-    }
-    replyLines.push(line);
-  }
-
-  const reply = replyLines.join('\n').trim();
-  return reply || plainText;
-}
-
-/**
- * Basic HTML → plain text stripping.
- * For production, consider using a proper HTML-to-text library.
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .trim();
 }
 
 // ─── Handler ─────────────────────────────────────────────────────
@@ -150,7 +53,7 @@ export const POST: APIRoute = async ({ request }) => {
     .limit(1);
 
   const providers = (providerConfig?.value ?? {}) as Record<string, unknown>;
-  const webhookSecret = resolveEnvKey(providers.emailWebhookSecret as string);
+  const webhookSecret = resolveEnvKey(String(providers.emailWebhookSecret ?? ''));
   const resendSignature = request.headers.get('resend-signature') ?? request.headers.get('svix-signature') ?? '';
 
   // 2. Read and verify payload
@@ -165,10 +68,10 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  // 3. Parse the inbound email
-  let email: ResendInboundEmail;
+  // 3. Parse the raw payload
+  let rawEmail: Record<string, unknown>;
   try {
-    email = JSON.parse(rawPayload);
+    rawEmail = JSON.parse(rawPayload);
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
@@ -176,96 +79,87 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // 4. Validate required fields
-  if (!email.from || !email.to || !email.html) {
-    return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+  // 4. Parse into structured email using email-parser
+  const email = parseInboundEmail({
+    from: String(rawEmail.from ?? ''),
+    to: rawEmail.to as string | string[] ?? [],
+    subject: String(rawEmail.subject ?? ''),
+    text: String(rawEmail.text ?? ''),
+    html: String(rawEmail.html ?? ''),
+    replyTo: rawEmail.reply_to as string | string[] | undefined,
+    headers: rawEmail.headers as Record<string, string> | undefined,
+  });
+
+  // Validate required fields
+  if (!email.from) {
+    return new Response(JSON.stringify({ error: 'Missing sender email' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  const senderEmail = (email.reply_to?.[0] ?? email.from).toLowerCase();
-  const replyContent = extractReplyContent(email.text ?? '', email.html);
+  // 5. Find or create lead
+  const senderEmail = (email.replyTo ?? email.from).toLowerCase();
+  let leadId: string;
+  let isNewLead = false;
 
-  // 5. Match to existing lead + conversation
-  const match = await matchToLead(senderEmail);
+  const [existingLead] = await db
+    .select()
+    .from(leads)
+    .where(eq(leads.email, senderEmail))
+    .limit(1);
 
-  if (!match) {
-    // No existing lead — this is a cold inbound email, not a reply.
-    // Treat it as a new lead via the inbound API.
-    // For now, log it and return 200 (Resend expects 200 or it retries).
-    console.log(`[resend-webhook] No matching lead for ${senderEmail}, treating as new inbound`);
+  if (existingLead) {
+    leadId = existingLead.id;
 
-    // Create as new lead
+    // Check opt-out
+    if (existingLead.status === 'opted_out') {
+      return new Response(JSON.stringify({ matched: true, optOut: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  } else {
+    // New lead — create from inbound email
     const [newLead] = await db
       .insert(leads)
       .values({
         source: 'email',
         type: 'lead',
-        name: email.from.includes('<') ? email.from.split('<')[0]?.trim() : email.from,
+        name: email.fromName || email.from,
         email: senderEmail,
-        message: replyContent,
+        message: email.text,
         status: 'new',
         metadata: {
           subject: email.subject,
-          resendId: email.id,
+          resendId: rawEmail.id,
           to: email.to,
         },
       })
       .returning();
 
-    const [conv] = await db
-      .insert(conversations)
-      .values({
-        leadId: newLead!.id,
-        inboxProvider: 'resend',
-        externalId: email.id,
-        awaitingReply: true,
-      })
-      .returning();
+    leadId = newLead!.id;
+    isNewLead = true;
 
-    await addMessage(conv!.id, 'user', 'customer', replyContent, {
-      subject: email.subject,
-      resendId: email.id,
-    });
-
-    await logEvent(newLead!.id, 'email_received', { source: 'resend_inbound' });
-
-    // Run response pipeline for new lead
-    const pipelineResult = await runResponsePipeline(conv!.id);
-
-    return new Response(JSON.stringify({
-      matched: false,
-      leadId: newLead!.id,
-      conversationId: conv!.id,
-      aiResponseSent: pipelineResult.aiResponseSent,
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    await logEvent(leadId, 'lead_created', { source: 'resend_inbound', email: senderEmail });
   }
 
-  // 6. Existing lead — add reply and trigger pipeline
-  const { leadId, conversationId } = match;
+  // 6. Find or create conversation (using threading headers)
+  const { conversationId, isNew: isNewConversation } = await findOrCreateConversation(
+    leadId,
+    'resend',
+    String(rawEmail.id ?? crypto.randomUUID()),
+    email.inReplyTo,
+    email.references,
+  );
 
-  // Check if lead has opted out
-  const [lead] = await db
-    .select()
-    .from(leads)
-    .where(eq(leads.id, leadId))
-    .limit(1);
-
-  if (lead?.status === 'opted_out') {
-    return new Response(JSON.stringify({ matched: true, optOut: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Add customer reply message
-  await addMessage(conversationId, 'user', 'customer', replyContent, {
+  // 7. Add customer message
+  await addMessage(conversationId, 'user', 'customer', email.text, {
     subject: email.subject,
-    resendId: email.id,
+    emailMessageId: email.messageId,
+    inReplyTo: email.inReplyTo,
+    resendId: rawEmail.id,
+    source: 'resend_inbound',
   });
 
   // Update conversation timestamps
@@ -277,26 +171,35 @@ export const POST: APIRoute = async ({ request }) => {
     })
     .where(eq(conversations.id, conversationId));
 
-  // Transition status
-  await transitionLeadStatus(leadId, 'customer_waiting', {
-    reason: 'lead_replied',
-    source: 'resend_inbound',
-  });
+  // 8. Update lead status
+  if (isNewLead) {
+    await transitionLeadStatus(leadId, 'new', { source: 'resend_inbound' });
+  } else {
+    await transitionLeadStatus(leadId, 'customer_waiting', {
+      reason: 'lead_replied',
+      source: 'resend_inbound',
+    });
+  }
 
   await logEvent(leadId, 'email_received', {
-    source: 'resend_reply',
+    source: 'resend_inbound',
     conversationId,
+    isNewConversation,
+    inReplyTo: email.inReplyTo,
   });
 
-  // 7. Run AI response pipeline
+  // 9. Run AI response pipeline
   const pipelineResult = await runResponsePipeline(conversationId);
 
   return new Response(JSON.stringify({
-    matched: true,
+    success: true,
     leadId,
     conversationId,
+    isNewLead,
+    isNewConversation,
     aiResponseSent: pipelineResult.aiResponseSent,
     escalated: pipelineResult.escalated ?? false,
+    reason: pipelineResult.reason,
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

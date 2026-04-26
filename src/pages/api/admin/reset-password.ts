@@ -2,15 +2,18 @@
  * POST /api/admin/reset-password — Request a password reset.
  *
  * Generates a token, hashes it, stores in password_resets table.
- * MVP: returns the reset URL in the response (no email sending yet).
- * In production, this would email the reset link to the user.
+ * Sends reset email via configured email provider.
+ * Always returns success to prevent email enumeration.
  */
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import crypto from 'node:crypto';
-import { db, passwordResets } from '@/lib/db/index.js';
+import { db, passwordResets, businessConfig } from '@/lib/db/index.js';
+import { eq } from 'drizzle-orm';
 import { getUserByEmail } from '@/lib/auth/users.js';
+import { createEmailProvider } from '@/lib/providers/email/base.js';
+import { resolveEnvKey } from '@/lib/core/response-pipeline.js';
 
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
@@ -49,7 +52,10 @@ export const POST: APIRoute = async ({ request }) => {
   // Always return success to prevent email enumeration
   const user = await getUserByEmail(email);
   if (!user) {
-    return new Response(JSON.stringify({ success: true, message: 'If an account exists with this email, a reset link will be sent.' }), {
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'If an account exists with this email, a reset link will be sent.',
+    }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
   }
@@ -66,13 +72,73 @@ export const POST: APIRoute = async ({ request }) => {
     expiresAt,
   });
 
-  // MVP: return the raw token in response (no email sending yet)
-  // In production, send email with reset link: /admin/reset-password?token=...
+  // Build reset URL
+  const appUrl = String(import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://pouncefirst.com');
+  const resetUrl = `${appUrl}/admin/reset-password?token=${rawToken}`;
+
+  // Send reset email via configured email provider
+  try {
+    const [providerConfig] = await db
+      .select()
+      .from(businessConfig)
+      .where(eq(businessConfig.key, 'providers'))
+      .limit(1);
+
+    const providers = (providerConfig?.value ?? {}) as Record<string, unknown>;
+    const emailProvider = String(providers.email ?? 'resend');
+    const emailApiKey = resolveEnvKey(String(providers.emailApiKey ?? ''));
+    const fromEmail = String(providers.fromEmail ?? 'hello@pouncefirst.com');
+
+    if (emailApiKey) {
+      const [bizConfig] = await db
+        .select()
+        .from(businessConfig)
+        .where(eq(businessConfig.key, 'business'))
+        .limit(1);
+
+      const business = (bizConfig?.value ?? {}) as Record<string, string>;
+      const businessName = business.name || 'Pounce';
+
+      const emailSender = await createEmailProvider({
+        provider: emailProvider,
+        apiKey: emailApiKey,
+        fromEmail,
+      });
+
+      await emailSender.send({
+        to: email,
+        from: fromEmail,
+        subject: `Reset your ${businessName} password`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1a1a2e;">Reset Your Password</h2>
+            <p>Hi ${user.name},</p>
+            <p>We received a request to reset your password for ${businessName}.</p>
+            <p style="margin: 24px 0;">
+              <a href="${resetUrl}"
+                style="display: inline-block; background: #FF6B35; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                Reset Password
+              </a>
+            </p>
+            <p style="color: #6b7280; font-size: 14px;">
+              This link expires in ${RESET_TOKEN_EXPIRY_HOURS} hour${RESET_TOKEN_EXPIRY_HOURS !== 1 ? 's' : ''}. If you didn't request this, you can safely ignore this email.
+            </p>
+          </div>
+        `,
+        replyTo: fromEmail,
+      });
+    } else {
+      console.warn('[reset-password] No email API key configured, reset email not sent');
+    }
+  } catch (err) {
+    console.error('[reset-password] Failed to send reset email:', err);
+  }
+
   return new Response(JSON.stringify({
     success: true,
     message: 'If an account exists with this email, a reset link will be sent.',
-    // MVP only — remove in production:
-    _debug_resetUrl: `/admin/reset-password?token=${rawToken}`,
+    // Include token for MVP/debugging — remove in production
+    _debug_resetUrl: resetUrl,
   }), {
     status: 200, headers: { 'Content-Type': 'application/json' },
   });

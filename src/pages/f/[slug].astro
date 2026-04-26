@@ -7,7 +7,7 @@
  */
 
 import { db, forms } from '@/lib/db/index.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const { slug } = Astro.params;
 
@@ -24,6 +24,9 @@ const [form] = await db
 if (!form || !form.active) {
   return new Response('Form not found', { status: 404 });
 }
+
+// Increment view count
+await db.update(forms).set({ views: sql`${forms.views} + 1` }).where(eq(forms.id, form.id));
 
 const fields = form.fields as Array<{
   name: string;

@@ -4,6 +4,10 @@
  * No auth required — this is the endpoint that embedded forms POST to.
  * Validates form data against the form's field schema,
  * creates a lead via the inbound API, and stores the submission.
+ *
+ * Spam protection:
+ * - Honeypot field: if `pounce_hp` is filled, silently "succeed" (it's a bot)
+ * - Rate limiting: max 5 submissions per IP per form per minute
  */
 
 import type { APIRoute } from 'astro';
@@ -14,11 +18,53 @@ import { addMessage } from '@/lib/core/conversation.js';
 import { runResponsePipeline } from '@/lib/core/response-pipeline.js';
 import { logEvent } from '@/lib/core/pipeline.js';
 
-export const POST: APIRoute = async ({ request, params }) => {
+// ─── Rate Limiting ─────────────────────────────────────────────────
+// In-memory rate limit: max 5 submissions per IP per form per minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+
+function checkRateLimit(ip: string, formSlug: string): boolean {
+  const key = `${ip}:${formSlug}`;
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
+// Clean up expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap) {
+    if (now > entry.resetAt) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 5 * 60_000);
+
+export const POST: APIRoute = async ({ request, params, clientAddress }) => {
   const slug = params.slug;
   if (!slug) {
     return new Response(JSON.stringify({ error: 'Form slug is required' }), {
       status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Rate limiting
+  const ip = clientAddress ?? request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
+  if (!checkRateLimit(ip, slug)) {
+    return new Response(JSON.stringify({ error: 'Too many submissions. Please wait a minute and try again.' }), {
+      status: 429, headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -60,6 +106,19 @@ export const POST: APIRoute = async ({ request, params }) => {
   }
 
   const data = body as Record<string, unknown>;
+
+  // 2.5 Honeypot check — if pounce_hp is filled, it's a bot
+  // Silently "succeed" so bots don't know they were caught
+  if (data.pounce_hp && String(data.pounce_hp).trim()) {
+    return new Response(JSON.stringify({
+      success: true,
+      message: form.submitMessage ?? 'Thank you! We\'ll be in touch soon.',
+    }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  // Remove honeypot from data so it's not stored
+  delete data.pounce_hp;
 
   // 3. Validate required fields
   const fieldSchema = form.fields as Array<{ name: string; type: string; label: string; required?: boolean }>;

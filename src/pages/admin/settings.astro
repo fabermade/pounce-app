@@ -1,27 +1,26 @@
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
+import KnowledgeSources from '../../components/admin/settings/KnowledgeSources.astro';
+import FaqSection from '../../components/admin/settings/FaqSection.astro';
+import BookingSection from '../../components/admin/settings/BookingSection.astro';
+import BookingConfig from '../../components/admin/settings/BookingConfig.astro';
+import AgentMode from '../../components/admin/settings/AgentMode.astro';
+import IntegrationsSection from '../../components/admin/settings/IntegrationsSection.astro';
+import ServicesSection from '../../components/admin/settings/ServicesSection.astro';
+import EscalationSection from '../../components/admin/settings/EscalationSection.astro';
+import ToneSection from '../../components/admin/settings/ToneSection.astro';
+import { db, businessConfig } from '../../lib/db/index.js';
+import { eq } from 'drizzle-orm';
 
-// Fetch config from API
-let configData: {
-  config: Record<string, unknown>;
-} = { config: {} };
-
-let error: string | null = null;
-
-try {
-  const response = await fetch(new URL('/api/admin/config', Astro.url.origin));
-  if (response.ok) {
-    configData = await response.json();
-  } else {
-    const errData = await response.json().catch(() => ({ error: 'Failed to fetch config' }));
-    error = errData.error || `Error ${response.status}`;
-  }
-} catch (e) {
-  error = 'Network error. Please try again.';
+// Read config directly from DB — no fetch() (SSR pages don't forward cookies)
+const configRows = await db.select().from(businessConfig);
+const configMap: Record<string, unknown> = {};
+for (const row of configRows) {
+  configMap[row.key] = row.value;
 }
 
-const config = configData.config;
+const config = configMap;
 
 const settingsSections = [
   { id: 'business', label: 'Business Identity' },
@@ -38,15 +37,25 @@ const settingsSections = [
 // Type-safe config accessors
 const business = (config.business || {}) as Record<string, string>;
 const tone = (config.tone || {}) as Record<string, unknown>;
-const services = (config.services || []) as Array<Record<string, string>>;
+const services = (config.services || []) as Array<{ name: string; description?: string; price?: string }>;
 const faq = (config.faq || []) as Array<Record<string, string>>;
 const escalation = (config.escalation || {}) as Record<string, unknown>;
 const booking = (config.booking || {}) as Record<string, string>;
 const providers = (config.providers || {}) as Record<string, string>;
+const agent = (config.agent || {}) as Record<string, unknown>;
 
 const toneDos = (tone.dos || []) as string[];
 const toneDonts = (tone.donts || []) as string[];
 const escalationTriggers = (escalation.triggerPhrases || []) as string[];
+
+// Knowledge sources
+const knowledge = (config.knowledge || {}) as Record<string, unknown>;
+const knowledgeLinks = (knowledge.links || []) as Array<{ url: string; label: string; description?: string }>;
+const knowledgeTexts = (knowledge.texts || []) as Array<{ title: string; content: string }>;
+
+// Provider key status — direct DB read shows real env:KEY refs
+const llmKeySet = !!(providers.llmApiKey);
+const emailKeySet = !!(providers.emailApiKey);
 ---
 
 <AdminPage title="Settings" currentPath="/admin/settings">
@@ -58,22 +67,18 @@ const escalationTriggers = (escalation.triggerPhrases || []) as string[];
         <p class="text-gray-500">Configure your AI lead response agent</p>
       </div>
 
-      <!-- Error State -->
-      {error && (
-        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm text-red-600">{error}</p>
-        </div>
-      )}
+      <!-- Save Status -->
+      <div id="save-status" class="hidden mb-6 p-4 rounded-lg"></div>
 
-      <!-- BOLT: Need PATCH /api/admin/config for saves -->
-
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <form id="settings-form" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <!-- Settings Navigation -->
         <div class="lg:col-span-1">
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-4">
             <nav class="divide-y divide-gray-100">
               {settingsSections.map((section, index) => (
                 <button
+                  type="button"
+                  data-section-nav={section.id}
                   class={`w-full text-left px-4 py-3 text-sm font-medium transition-colors hover:bg-gray-50 ${
                     index === 0 ? 'bg-pounce-orange/10 text-pounce-orange' : 'text-gray-600'
                   }`}
@@ -82,270 +87,191 @@ const escalationTriggers = (escalation.triggerPhrases || []) as string[];
                 </button>
               ))}
             </nav>
+            <div class="p-4 border-t border-gray-100">
+              <button
+                type="submit"
+                id="save-btn"
+                class="w-full px-4 py-2 bg-charcoal text-white rounded-lg font-medium hover:bg-charcoal-light transition-colors text-sm"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Settings Content -->
         <div class="lg:col-span-3 space-y-6">
+
           <!-- Business Identity -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div id="section-business" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Business Identity</h2>
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
-                <input
-                  type="text"
-                  name="business.name"
-                  value={business.name || ''}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
+                <input type="text" name="business.name" value={business.name || ''} class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
-                <input
-                  type="text"
-                  name="business.tagline"
-                  value={business.tagline || ''}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
+                <input type="text" name="business.tagline" value={business.tagline || ''} class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input
-                  type="url"
-                  name="business.website"
-                  value={business.website || ''}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
+                <input type="url" name="business.website" value={business.website || ''} class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  name="business.description"
-                  rows={4}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                >{business.description || ''}</textarea>
+                <textarea name="business.description" rows={4} class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm">{business.description || ''}</textarea>
               </div>
             </div>
           </div>
 
           <!-- Tone & Voice -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Tone & Voice</h2>
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Style Preset</label>
-                <select
-                  name="tone.style"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                >
-                  <option value="professional" selected={tone.style === 'professional'}>Professional</option>
-                  <option value="friendly" selected={tone.style === 'friendly'}>Friendly</option>
-                  <option value="casual" selected={tone.style === 'casual'}>Casual</option>
-                  <option value="formal" selected={tone.style === 'formal'}>Formal</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions</label>
-                <textarea
-                  name="tone.instructions"
-                  rows={3}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                >{(tone.instructions || '') as string}</textarea>
-              </div>
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Dos</label>
-                  <div class="space-y-2">
-                    {toneDos.length > 0 ? toneDos.map((item) => (
-                      <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span class="text-sm text-gray-600">{item}</span>
-                      </div>
-                    )) : (
-                      <p class="text-sm text-gray-400">No dos configured.</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Don'ts</label>
-                  <div class="space-y-2">
-                    {toneDonts.length > 0 ? toneDonts.map((item) => (
-                      <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        <span class="text-sm text-gray-600">{item}</span>
-                      </div>
-                    )) : (
-                      <p class="text-sm text-gray-400">No don'ts configured.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ToneSection
+            style={(tone.style || 'professional') as string}
+            instructions={(tone.instructions || '') as string}
+            dos={toneDos}
+            donts={toneDonts}
+          />
 
-          <!-- Services -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-semibold font-heading text-charcoal">Services & Pricing</h2>
-              <button class="px-4 py-2 bg-pounce-orange text-white rounded-lg text-sm font-medium hover:bg-pounce-orange-dark transition-colors">
-                + Add Service
-              </button>
-            </div>
-            {services.length === 0 ? (
-              <p class="text-sm text-gray-400">No services configured.</p>
-            ) : (
-              <div class="space-y-4">
-                {services.map((service) => (
-                  <div class="p-4 border border-gray-200 rounded-lg">
-                    <div class="flex items-center justify-between mb-2">
-                      <input
-                        type="text"
-                        value={service.name || ''}
-                        class="font-medium text-charcoal bg-transparent border-none focus:outline-none"
-                      />
-                      <button class="text-gray-400 hover:text-red-500 transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={service.description || ''}
-                      class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none mb-2"
-                    />
-                    <input
-                      type="text"
-                      value={service.price || ''}
-                      class="text-sm text-pounce-orange font-medium bg-transparent border-none focus:outline-none"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <!-- Knowledge Sources -->
+          <KnowledgeSources links={knowledgeLinks} textEntries={knowledgeTexts} />
 
-          <!-- Escalation -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Escalation Rules</h2>
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger Phrases</label>
-                <div class="flex flex-wrap gap-2">
-                  {escalationTriggers.map((phrase) => (
-                    <span class="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">{phrase}</span>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notify Email</label>
-                <input
-                  type="email"
-                  value={(escalation.notifyEmail || '') as string}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
-              </div>
-            </div>
-          </div>
+          <!-- Services & Pricing -->
+          <ServicesSection services={services} />
+
+          <!-- FAQ -->
+          <FaqSection faq={faq.map(f => ({ question: f.question || '', answer: f.answer || '' }))} />
+
+          <!-- Escalation Rules -->
+          <EscalationSection triggers={escalationTriggers} notifyEmail={(escalation.notifyEmail || '') as string} />
 
           <!-- Booking -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Booking</h2>
-            <div class="space-y-4 max-w-lg">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Booking Provider</label>
-                <select
-                  name="booking.provider"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                >
-                  <option value="calcom" selected={booking.provider === 'calcom'}>Cal.com</option>
-                  <option value="calendly" selected={booking.provider === 'calendly'}>Calendly</option>
-                  <option value="" selected={!booking.provider}>None</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Booking URL</label>
-                <input
-                  type="url"
-                  name="booking.url"
-                  value={booking.url || ''}
-                  placeholder="https://cal.com/your-name"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">CTA Text</label>
-                <input
-                  type="text"
-                  name="booking.cta"
-                  value={booking.cta || ''}
-                  placeholder="Book a call"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">When to Offer Booking</label>
-                <select
-                  name="booking.timing"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-                >
-                  <option value="immediately" selected={booking.timing === 'immediately'}>Immediately</option>
-                  <option value="after_first_exchange" selected={booking.timing === 'after_first_exchange'}>After first exchange</option>
-                  <option value="after_second_exchange" selected={booking.timing === 'after_second_exchange'}>After second exchange</option>
-                  <option value="manual" selected={booking.timing === 'manual'}>Manual only</option>
-                </select>
-              </div>
-              <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Webhook URL</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readonly
-                    value={booking.provider ? `https://www.pouncefirst.com/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
-                    class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
-                  />
-                  <button class="px-3 py-2 bg-charcoal text-white rounded-lg text-xs font-medium hover:bg-charcoal-light transition-colors">Copy</button>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">Paste this into your booking provider's webhook settings.</p>
-              </div>
-            </div>
-          </div>
+          <BookingSection
+            url={booking.url || ''}
+            ctaText={booking.ctaText || ''}
+            timing={booking.timing || 'after_first_exchange'}
+          />
 
-          <!-- Providers -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Providers</h2>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">LLM Provider</label>
-                <select class="w-full px-4 py-2 rounded-lg border border-gray-200 text-sm">
-                  <option value="openai" selected={providers.llm === 'openai'}>OpenAI</option>
-                  <option value="anthropic" selected={providers.llm === 'anthropic'}>Anthropic</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email Provider</label>
-                <select class="w-full px-4 py-2 rounded-lg border border-gray-200 text-sm">
-                  <option value="resend" selected={providers.email === 'resend'}>Resend</option>
-                  <option value="sendgrid" selected={providers.email === 'sendgrid'}>SendGrid</option>
-                  <option value="mailgun" selected={providers.email === 'mailgun'}>Mailgun</option>
-                </select>
-              </div>
-            </div>
-          </div>
+          <!-- Integrations -->
+          <IntegrationsSection
+            llm={providers.llm || ''}
+            email={providers.email || ''}
+            fromEmail={providers.fromEmail || ''}
+            model={providers.llmModel || ''}
+            llmBaseUrl={providers.llmBaseUrl || ''}
+            llmKeySet={llmKeySet}
+            emailKeySet={emailKeySet}
+          />
 
-          <!-- Save Button -->
-          <div class="flex justify-end">
-            <button class="px-6 py-3 bg-charcoal text-white rounded-lg font-medium hover:bg-charcoal-light transition-colors">
-              Save Changes
-            </button>
-          </div>
+          <!-- Agent Mode -->
+          <AgentMode
+            enabled={(agent.enabled || false) as boolean}
+            webhookUrl={(agent.webhookUrl || '') as string}
+          />
+
         </div>
-      </div>
+      </form>
     </div>
   </AdminLayout>
+
+  <script>
+    // Section navigation scroll
+    document.querySelectorAll('[data-section-nav]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sectionId = btn.getAttribute('data-section-nav');
+        const section = document.getElementById(`section-${sectionId}`);
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        document.querySelectorAll('[data-section-nav]').forEach((b) => {
+          b.classList.remove('bg-pounce-orange/10', 'text-pounce-orange');
+          b.classList.add('text-gray-600');
+        });
+        (btn as HTMLElement).classList.add('bg-pounce-orange/10', 'text-pounce-orange');
+        btn.classList.remove('text-gray-600');
+      });
+    });
+
+    // Form submission — collect data and PATCH
+    const form = document.getElementById('settings-form') as HTMLFormElement;
+    const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
+    const saveStatus = document.getElementById('save-status') as HTMLDivElement;
+
+    function showStatus(message: string, type: 'success' | 'error') {
+      saveStatus.textContent = message;
+      saveStatus.className = `mb-6 p-4 rounded-lg ${type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`;
+      saveStatus.classList.remove('hidden');
+      setTimeout(() => saveStatus.classList.add('hidden'), 5000);
+    }
+
+    function collectFormData(formEl: HTMLFormElement): Record<string, unknown> {
+      const payload: Record<string, unknown> = {};
+      const formData = new FormData(formEl);
+
+      for (const [key, value] of formData.entries()) {
+        // Convert checkboxes to booleans
+        const boolValue = value === 'on' ? true : value;
+
+        // Parse bracket notation: services[0].name → { services: [{ name: val }] }
+        const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
+        if (match) {
+          const [, arrName, indexStr, field] = match;
+          const index = parseInt(indexStr!, 10);
+          if (!payload[arrName!]) payload[arrName!] = [];
+          const arr = payload[arrName!] as Array<Record<string, unknown>>;
+          // Compact sparse arrays
+          while (arr.length <= index) arr.push({});
+          arr[index!][field!] = boolValue;
+          continue;
+        }
+
+        // Parse dot notation: business.name → { business: { name: val } }
+        if (key.includes('.') && !key.includes('[')) {
+          const parts = key.split('.');
+          let current: Record<string, unknown> = payload;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]!]) current[parts[i]!] = {};
+            current = current[parts[i]!] as Record<string, unknown>;
+          }
+          current[parts[parts.length - 1]!] = boolValue;
+          continue;
+        }
+
+        // Simple key
+        payload[key] = boolValue;
+      }
+
+      return payload;
+    }
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      const payload = collectFormData(form);
+
+      try {
+        const response = await fetch('/api/admin/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          showStatus('Settings saved successfully!', 'success');
+        } else {
+          const err = await response.json().catch(() => ({ error: 'Save failed' }));
+          showStatus(err.error || 'Failed to save settings.', 'error');
+        }
+      } catch {
+        showStatus('Network error. Please try again.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+      }
+    });
+  </script>
 </AdminPage>

@@ -1,51 +1,37 @@
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { db, conversations, leads, messages } from '../../lib/db/index.js';
+import { eq, desc } from 'drizzle-orm';
 
 const leadId = Astro.url.searchParams.get('leadId');
 
-// Fetch conversations from API
-let conversationsData: {
-  conversations: Array<{
-    id: string;
-    lead: { name: string | null; email: string; company: string | null };
-    status: string;
-    awaitingReply: boolean;
-    messages: Array<{
-      id: string;
-      role: string;
-      source: string;
-      content: string;
-      createdAt: Date;
-    }>;
-  }>;
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-} = { conversations: [], pagination: { page: 1, limit: 25, total: 0, totalPages: 0 } };
+// Read conversations directly from DB
+const allConversations = await db
+  .select()
+  .from(conversations)
+  .orderBy(desc(conversations.createdAt))
+  .limit(50);
 
-let error: string | null = null;
+// Enrich with lead info and messages
+const enrichedConversations = await Promise.all(
+  allConversations.map(async (conv) => {
+    const [lead] = await db.select().from(leads).where(eq(leads.id, conv.leadId)).limit(1);
+    const convMessages = await db.select().from(messages).where(eq(messages.conversationId, conv.id)).orderBy(messages.createdAt);
+    return {
+      ...conv,
+      lead: lead || { name: 'Unknown', email: 'unknown@example.com', company: null },
+      messages: convMessages,
+    };
+  })
+);
 
-try {
-  const url = new URL('/api/admin/conversations', Astro.url.origin);
-  if (leadId) url.searchParams.set('leadId', leadId);
+// Filter by leadId if specified
+const filteredConversations = leadId
+  ? enrichedConversations.filter(c => c.leadId === leadId)
+  : enrichedConversations;
 
-  const response = await fetch(url.toString());
-  if (response.ok) {
-    conversationsData = await response.json();
-  } else {
-    const errData = await response.json().catch(() => ({ error: 'Failed to fetch conversations' }));
-    error = errData.error || `Error ${response.status}`;
-  }
-} catch (e) {
-  error = 'Network error. Please try again.';
-}
-
-// Select first conversation or the one matching leadId
-const selectedConv = conversationsData.conversations.length > 0 ? conversationsData.conversations[0] : null;
+const selectedConv = filteredConversations.length > 0 ? filteredConversations[0] : null;
 
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-800',
@@ -79,13 +65,6 @@ const statusLabels: Record<string, string> = {
         <p class="text-gray-500">View and manage lead conversations</p>
       </div>
 
-      <!-- Error State -->
-      {error && (
-        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm text-red-600">{error}</p>
-        </div>
-      )}
-
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Conversation List -->
         <div class="lg:col-span-1">
@@ -93,13 +72,14 @@ const statusLabels: Record<string, string> = {
             <div class="p-4 border-b border-gray-100">
               <h2 class="text-sm font-semibold text-charcoal">Active Conversations</h2>
             </div>
-            {conversationsData.conversations.length === 0 ? (
+            {filteredConversations.length === 0 ? (
               <div class="p-8 text-center text-gray-400">
                 <p class="text-sm">No conversations yet.</p>
               </div>
             ) : (
               <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                {conversationsData.conversations.map((conv) => {
+                {filteredConversations.map((conv) => {
+                  const leadData = conv.lead as { name: string | null; email: string; company: string | null };
                   const lastMessage = conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null;
                   return (
                     <a
@@ -109,11 +89,11 @@ const statusLabels: Record<string, string> = {
                       <div class="flex items-start justify-between mb-2">
                         <div class="flex items-center gap-2">
                           <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
-                            {(conv.lead.name || conv.lead.email).charAt(0).toUpperCase()}
+                            {(leadData.name || leadData.email).charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p class="font-medium text-charcoal text-sm">{conv.lead.name || 'Unknown'}</p>
-                            <p class="text-xs text-gray-500">{conv.lead.company || conv.lead.email}</p>
+                            <p class="font-medium text-charcoal text-sm">{leadData.name || 'Unknown'}</p>
+                            <p class="text-xs text-gray-500">{leadData.company || leadData.email}</p>
                           </div>
                         </div>
                         {conv.awaitingReply && (
@@ -124,8 +104,8 @@ const statusLabels: Record<string, string> = {
                         <>
                           <p class="text-sm text-gray-600 line-clamp-2">{lastMessage.content}</p>
                           <div class="mt-2 flex items-center gap-2">
-                            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status]}`}>
-                              {statusLabels[conv.status]}
+                            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[conv.status] || 'bg-gray-100 text-gray-800'}`}>
+                              {statusLabels[conv.status] || conv.status}
                             </span>
                             <span class="text-xs text-gray-400">
                               {new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -150,16 +130,16 @@ const statusLabels: Record<string, string> = {
                 <div class="p-4 border-b border-gray-100 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                      {(selectedConv.lead.name || selectedConv.lead.email).charAt(0).toUpperCase()}
+                      {((selectedConv.lead as { name: string | null; email: string }).name || (selectedConv.lead as { email: string }).email).charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p class="font-medium text-charcoal">{selectedConv.lead.name || 'Unknown'}</p>
-                      <p class="text-sm text-gray-500">{selectedConv.lead.email}</p>
+                      <p class="font-medium text-charcoal">{(selectedConv.lead as { name: string | null }).name || 'Unknown'}</p>
+                      <p class="text-sm text-gray-500">{(selectedConv.lead as { email: string }).email}</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedConv.status]}`}>
-                      {statusLabels[selectedConv.status]}
+                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedConv.status] || 'bg-gray-100 text-gray-800'}`}>
+                      {statusLabels[selectedConv.status] || selectedConv.status}
                     </span>
                   </div>
                 </div>

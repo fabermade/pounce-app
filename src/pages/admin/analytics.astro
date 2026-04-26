@@ -1,67 +1,36 @@
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { db, leads, events } from '../../lib/db/index.js';
+import { desc, sql } from 'drizzle-orm';
 
-// Fetch analytics from API
-let analyticsData: {
-  stats: {
-    totalLeads: number;
-    responseRate: number;
-    avgResponseTime: string;
-    bookingRate: number;
-    leadsThisWeek: number;
-    leadsLastWeek: number;
-  };
-  weeklyData: Array<{
-    day: string;
-    leads: number;
-    responses: number;
-    bookings: number;
-  }>;
-  statusBreakdown: Array<{
-    status: string;
-    count: number;
-  }>;
-  recentActivity: Array<{
-    action: string;
-    target: string;
-    time: Date;
-  }>;
-} = {
-  stats: { totalLeads: 0, responseRate: 0, avgResponseTime: '0', bookingRate: 0, leadsThisWeek: 0, leadsLastWeek: 0 },
-  weeklyData: [],
-  statusBreakdown: [],
-  recentActivity: [],
+// Read analytics directly from DB
+const allLeads = await db.select().from(leads);
+const totalLeads = allLeads.length;
+
+// Status breakdown
+const statusGroups = allLeads.reduce((acc, lead) => {
+  acc[lead.status] = (acc[lead.status] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+
+const statusBreakdown = Object.entries(statusGroups).map(([status, count]) => ({ status, count }));
+
+// Recent events (last 50)
+const recentEvents = await db.select().from(events).orderBy(desc(events.createdAt)).limit(50);
+
+const statusColors: Record<string, string> = {
+  new: 'bg-blue-100 text-blue-800',
+  contacted: 'bg-yellow-100 text-yellow-800',
+  customer_waiting: 'bg-orange-100 text-orange-800',
+  scheduled: 'bg-green-100 text-green-800',
+  closed_won: 'bg-green-100 text-green-800',
+  closed_lost: 'bg-gray-100 text-gray-600',
+  escalated: 'bg-red-100 text-red-800',
+  opted_out: 'bg-gray-100 text-gray-400',
 };
 
-let error: string | null = null;
-
-try {
-  const response = await fetch(new URL('/api/admin/analytics', Astro.url.origin));
-  if (response.ok) {
-    analyticsData = await response.json();
-  } else {
-    const errData = await response.json().catch(() => ({ error: 'Failed to fetch analytics' }));
-    error = errData.error || `Error ${response.status}`;
-  }
-} catch (e) {
-  error = 'Network error. Please try again.';
-}
-
-const { stats, weeklyData, statusBreakdown, recentActivity } = analyticsData;
-
-const statusColorMap: Record<string, string> = {
-  new: 'bg-blue-500',
-  contacted: 'bg-yellow-500',
-  customer_waiting: 'bg-orange-500',
-  scheduled: 'bg-green-500',
-  closed_won: 'bg-green-600',
-  closed_lost: 'bg-gray-400',
-  escalated: 'bg-red-500',
-  opted_out: 'bg-gray-300',
-};
-
-const statusLabelMap: Record<string, string> = {
+const statusLabels: Record<string, string> = {
   new: 'New',
   contacted: 'Contacted',
   customer_waiting: 'Customer Waiting',
@@ -71,8 +40,6 @@ const statusLabelMap: Record<string, string> = {
   escalated: 'Escalated',
   opted_out: 'Opted Out',
 };
-
-const maxCount = Math.max(...statusBreakdown.map(s => s.count), 1);
 ---
 
 <AdminPage title="Analytics" currentPath="/admin/analytics">
@@ -81,136 +48,97 @@ const maxCount = Math.max(...statusBreakdown.map(s => s.count), 1);
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold font-heading text-charcoal mb-2">Analytics</h1>
-        <p class="text-gray-500">Track your lead response performance</p>
+        <p class="text-gray-500">Track your lead pipeline performance</p>
       </div>
 
-      <!-- Error State -->
-      {error && (
-        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm text-red-600">{error}</p>
-        </div>
-      )}
-
-      <!-- Stats Grid -->
+      <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <p class="text-sm text-gray-500 mb-1">Total Leads</p>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-charcoal">{stats.totalLeads}</span>
-            <span class="text-sm text-green-600 font-medium mb-1">+{stats.leadsThisWeek - stats.leadsLastWeek}</span>
+          <p class="text-3xl font-bold font-heading text-charcoal">{totalLeads}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <p class="text-sm text-gray-500 mb-1">Status Breakdown</p>
+          <div class="flex flex-wrap gap-2 mt-2">
+            {statusBreakdown.map(({ status, count }) => (
+              <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
+                {statusLabels[status] || status}: {count}
+              </span>
+            ))}
           </div>
         </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <p class="text-sm text-gray-500 mb-1">Response Rate</p>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-charcoal">{stats.responseRate}%</span>
-            <span class="text-sm text-green-600 font-medium mb-1">+2%</span>
-          </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <p class="text-sm text-gray-500 mb-1">Responded</p>
+          <p class="text-3xl font-bold font-heading text-charcoal">
+            {allLeads.filter(l => l.status !== 'new').length}
+          </p>
         </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <p class="text-sm text-gray-500 mb-1">Avg Response Time</p>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-charcoal">{stats.avgResponseTime}s</span>
-            <span class="text-sm text-green-600 font-medium mb-1">-0.5s</span>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <p class="text-sm text-gray-500 mb-1">Booking Rate</p>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-charcoal">{stats.bookingRate}%</span>
-            <span class="text-sm text-green-600 font-medium mb-1">+5%</span>
-          </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <p class="text-sm text-gray-500 mb-1">Booked</p>
+          <p class="text-3xl font-bold font-heading text-charcoal">
+            {allLeads.filter(l => l.status === 'scheduled').length}
+          </p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Weekly Activity Chart -->
+      <!-- Status Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-6">Weekly Activity</h2>
-          {weeklyData.length === 0 ? (
-            <div class="py-12 text-center text-gray-400">
-              <p class="text-sm">No activity this week.</p>
-            </div>
-          ) : (
-            <>
-              <div class="space-y-4">
-                {weeklyData.map((day) => (
-                  <div class="flex items-center gap-4">
-                    <span class="text-sm text-gray-600 w-8">{day.day}</span>
-                    <div class="flex-1 flex gap-1">
-                      <div
-                        class="h-6 bg-pounce-orange rounded flex items-center justify-center"
-                        style={`width: ${Math.max((day.leads / 6) * 100, 8)}%`}
-                      >
-                        <span class="text-xs text-white px-2">{day.leads}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div class="flex items-center gap-6 mt-4 text-xs text-gray-500">
-                <div class="flex items-center gap-2">
-                  <span class="w-3 h-3 bg-pounce-orange rounded"></span>
-                  Leads
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <!-- Status Breakdown -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-6">Pipeline Status</h2>
-          {statusBreakdown.length === 0 ? (
-            <div class="py-12 text-center text-gray-400">
-              <p class="text-sm">No data yet.</p>
-            </div>
-          ) : (
-            <div class="space-y-4">
-              {statusBreakdown.map((item) => (
-                <div class="flex items-center gap-4">
-                  <div class={`w-3 h-3 rounded-full ${statusColorMap[item.status] || 'bg-gray-400'}`}></div>
-                  <span class="text-sm text-gray-600 flex-1">{statusLabelMap[item.status] || item.status}</span>
-                  <span class="text-sm font-medium text-charcoal">{item.count}</span>
-                  <div class="w-24 bg-gray-100 rounded-full h-2">
-                    <div
-                      class={`h-2 rounded-full ${statusColorMap[item.status] || 'bg-gray-400'}`}
-                      style={`width: ${(item.count / maxCount) * 100}%`}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <!-- Recent Activity -->
-      <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Recent Activity</h2>
-        {recentActivity.length === 0 ? (
-          <div class="py-8 text-center text-gray-400">
-            <p class="text-sm">No recent activity.</p>
-          </div>
-        ) : (
+          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Lead Status</h2>
           <div class="space-y-3">
-            {recentActivity.map((activity) => (
-              <div class="flex items-center justify-between py-2">
-                <div class="flex items-center gap-3">
-                  <div class="w-2 h-2 bg-pounce-orange rounded-full"></div>
-                  <span class="text-sm text-gray-600">{activity.action}</span>
-                  <span class="text-sm text-charcoal font-medium">{activity.target}</span>
+            {statusBreakdown.map(({ status, count }) => {
+              const pct = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
+              return (
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm text-gray-600">{statusLabels[status] || status}</span>
+                    <span class="text-sm font-medium text-charcoal">{count} ({pct}%)</span>
+                  </div>
+                  <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class={`h-2 rounded-full ${statusColors[status]?.split(' ')[0] || 'bg-gray-300'}`} style={`width: ${pct}%`}></div>
+                  </div>
                 </div>
-                <span class="text-xs text-gray-400">
-                  {new Date(activity.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Recent Activity</h2>
+          <div class="space-y-3 max-h-[400px] overflow-y-auto">
+            {recentEvents.length === 0 && (
+              <p class="text-sm text-gray-400">No activity yet.</p>
+            )}
+            {recentEvents.map((event) => (
+              <div class="flex items-start gap-3">
+                <div class="w-2 h-2 bg-pounce-orange rounded-full mt-2"></div>
+                <div>
+                  <p class="text-sm text-charcoal">{event.type.replace(/_/g, ' ')}</p>
+                  <p class="text-xs text-gray-400">{new Date(event.createdAt).toLocaleString()}</p>
+                </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
+      </div>
+
+      <!-- Leads by Source -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Leads by Source</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(
+            allLeads.reduce((acc, lead) => {
+              acc[lead.source] = (acc[lead.source] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>)
+          ).map(([source, count]) => (
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+              <p class="text-2xl font-bold text-charcoal">{count}</p>
+              <p class="text-sm text-gray-500 capitalize">{source}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   </AdminLayout>

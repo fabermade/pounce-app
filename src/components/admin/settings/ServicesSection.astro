@@ -1,0 +1,92 @@
+---
+// Services & Pricing section with add/remove
+// Props: services array
+
+interface Props {
+  services?: Array<{ name: string; description?: string; price?: string }>;
+}
+
+const { services = [] } = Astro.props;
+---
+
+<div id="section-services" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold font-heading text-charcoal">Services & Pricing</h2>
+    <button type="button" data-add-service class="px-3 py-1.5 bg-pounce-orange text-white rounded-lg text-xs font-medium hover:bg-pounce-orange-dark transition-colors">
+      + Add Service
+    </button>
+  </div>
+  <div id="services-list" class="space-y-3">
+    {services.length === 0 && (
+      <p class="text-sm text-gray-400">No services configured.</p>
+    )}
+    {services.map((service, i) => (
+      <div class="service-item p-3 border border-gray-200 rounded-lg" data-index={i}>
+        <div class="flex items-center justify-between mb-2">
+          <input
+            type="text"
+            name={`services[${i}].name`}
+            value={service.name}
+            placeholder="Service name"
+            class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1"
+          />
+          <button type="button" data-remove-service class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+        <input
+          type="text"
+          name={`services[${i}].description`}
+          value={service.description || ''}
+          placeholder="Description"
+          class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none mb-1"
+        />
+        <input
+          type="text"
+          name={`services[${i}].price`}
+          value={service.price || ''}
+          placeholder="Price"
+          class="text-sm text-pounce-orange font-medium bg-transparent border-none focus:outline-none"
+        />
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  const servicesList = document.getElementById('services-list');
+
+  document.querySelector('[data-add-service]')?.addEventListener('click', () => {
+    const count = servicesList?.querySelectorAll('.service-item').length || 0;
+    const div = document.createElement('div');
+    div.className = 'service-item p-3 border border-gray-200 rounded-lg';
+    div.dataset.index = String(count);
+    div.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <input type="text" name="services[${count}].name" placeholder="Service name" class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1" />
+        <button type="button" data-remove-service class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+      <input type="text" name="services[${count}].description" placeholder="Description" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none mb-1" />
+      <input type="text" name="services[${count}].price" placeholder="Price" class="text-sm text-pounce-orange font-medium bg-transparent border-none focus:outline-none" />
+    `;
+    servicesList?.appendChild(div);
+    const noSvcs = servicesList?.querySelector('p.text-gray-400');
+    if (noSvcs) noSvcs.remove();
+  });
+
+  servicesList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-remove-service]');
+    if (btn) {
+      btn.closest('.service-item')?.remove();
+      if (servicesList.querySelectorAll('.service-item').length === 0) {
+        servicesList.innerHTML = '<p class="text-sm text-gray-400">No services configured.</p>';
+      }
+    }
+  });
+</script>

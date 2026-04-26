@@ -1,0 +1,172 @@
+---
+// Knowledge Sources section component
+// Props: links (url+label+description array), textEntries (title+content array)
+
+interface Props {
+  links?: Array<{ url: string; label: string; description?: string }>;
+  textEntries?: Array<{ title: string; content: string }>;
+}
+
+const { links = [], textEntries = [] } = Astro.props;
+---
+
+<div id="section-knowledge" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Knowledge Sources</h2>
+
+  <!-- Links -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-medium text-gray-700">Links</h3>
+      <button type="button" data-add-link class="px-3 py-1.5 bg-pounce-orange text-white rounded-lg text-xs font-medium hover:bg-pounce-orange-dark transition-colors">
+        + Add Link
+      </button>
+    </div>
+    <div id="knowledge-links-list" class="space-y-3">
+      {links.length === 0 && (
+        <p class="text-sm text-gray-400">No links configured.</p>
+      )}
+      {links.map((link, i) => (
+        <div class="knowledge-link-item p-3 border border-gray-200 rounded-lg" data-index={i}>
+          <div class="flex items-center justify-between mb-2">
+            <input
+              type="text"
+              name={`knowledge.links[${i}].label`}
+              value={link.label}
+              placeholder="Label"
+              class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1"
+            />
+            <button type="button" data-remove-link class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <input
+            type="url"
+            name={`knowledge.links[${i}].url`}
+            value={link.url}
+            placeholder="https://example.com"
+            class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none mb-1"
+          />
+          <input
+            type="text"
+            name={`knowledge.links[${i}].description`}
+            value={link.description || ''}
+            placeholder="Description (optional)"
+            class="w-full text-sm text-gray-400 bg-transparent border-none focus:outline-none"
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <!-- Text Entries -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-medium text-gray-700">Text Entries</h3>
+      <button type="button" data-add-text class="px-3 py-1.5 bg-pounce-orange text-white rounded-lg text-xs font-medium hover:bg-pounce-orange-dark transition-colors">
+        + Add Text
+      </button>
+    </div>
+    <div id="knowledge-text-list" class="space-y-3">
+      {textEntries.length === 0 && (
+        <p class="text-sm text-gray-400">No text entries configured.</p>
+      )}
+      {textEntries.map((entry, i) => (
+        <div class="knowledge-text-item p-3 border border-gray-200 rounded-lg" data-index={i}>
+          <div class="flex items-center justify-between mb-2">
+            <input
+              type="text"
+              name={`knowledge.text[${i}].title`}
+              value={entry.title}
+              placeholder="Title"
+              class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1"
+            />
+            <button type="button" data-remove-text class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <textarea
+            name={`knowledge.text[${i}].content`}
+            rows={3}
+            placeholder="Content"
+            class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"
+          >{entry.content}</textarea>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Knowledge Sources — Add/Remove handlers
+  const linksList = document.getElementById('knowledge-links-list');
+  const textList = document.getElementById('knowledge-text-list');
+
+  document.querySelector('[data-add-link]')?.addEventListener('click', () => {
+    const count = linksList?.querySelectorAll('.knowledge-link-item').length || 0;
+    const div = document.createElement('div');
+    div.className = 'knowledge-link-item p-3 border border-gray-200 rounded-lg';
+    div.dataset.index = String(count);
+    div.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <input type="text" name="knowledge.links[${count}].label" placeholder="Label" class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1" />
+        <button type="button" data-remove-link class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <input type="url" name="knowledge.links[${count}].url" placeholder="https://example.com" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none mb-1" />
+      <input type="text" name="knowledge.links[${count}].description" placeholder="Description (optional)" class="w-full text-sm text-gray-400 bg-transparent border-none focus:outline-none" />
+    `;
+    linksList?.appendChild(div);
+    // Remove "No links" message if present
+    const noLinks = linksList?.querySelector('p.text-gray-400');
+    if (noLinks) noLinks.remove();
+  });
+
+  document.querySelector('[data-add-text]')?.addEventListener('click', () => {
+    const count = textList?.querySelectorAll('.knowledge-text-item').length || 0;
+    const div = document.createElement('div');
+    div.className = 'knowledge-text-item p-3 border border-gray-200 rounded-lg';
+    div.dataset.index = String(count);
+    div.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <input type="text" name="knowledge.text[${count}].title" placeholder="Title" class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1" />
+        <button type="button" data-remove-text class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <textarea name="knowledge.text[${count}].content" rows="3" placeholder="Content" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"></textarea>
+    `;
+    textList?.appendChild(div);
+    const noText = textList?.querySelector('p.text-gray-400');
+    if (noText) noText.remove();
+  });
+
+  // Event delegation for remove buttons
+  linksList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-remove-link]');
+    if (btn) {
+      btn.closest('.knowledge-link-item')?.remove();
+      if (linksList.querySelectorAll('.knowledge-link-item').length === 0) {
+        linksList.innerHTML = '<p class="text-sm text-gray-400">No links configured.</p>';
+      }
+    }
+  });
+
+  textList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-remove-text]');
+    if (btn) {
+      btn.closest('.knowledge-text-item')?.remove();
+      if (textList.querySelectorAll('.knowledge-text-item').length === 0) {
+        textList.innerHTML = '<p class="text-sm text-gray-400">No text entries configured.</p>';
+      }
+    }
+  });
+</script>

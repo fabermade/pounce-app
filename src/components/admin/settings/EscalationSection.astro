@@ -1,0 +1,89 @@
+---
+// Escalation Rules section with add/remove triggers
+// Props: triggers array, notifyEmail
+
+interface Props {
+  triggers?: string[];
+  notifyEmail?: string;
+}
+
+const { triggers = [], notifyEmail = '' } = Astro.props;
+---
+
+<div id="section-escalation" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Escalation Rules</h2>
+  <div class="space-y-4">
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <label class="text-sm font-medium text-gray-700">Trigger Phrases</label>
+        <button type="button" data-add-trigger class="px-3 py-1.5 bg-pounce-orange text-white rounded-lg text-xs font-medium hover:bg-pounce-orange-dark transition-colors">
+          + Add Trigger
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 mb-2">If a lead says any of these, the AI will escalate to a human.</p>
+      <div id="triggers-list" class="flex flex-wrap gap-2">
+        {triggers.length === 0 && (
+          <span class="text-sm text-gray-400">No triggers configured.</span>
+        )}
+        {triggers.map((phrase, i) => (
+          <span class="trigger-tag inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded text-xs font-medium" data-index={i}>
+            <input
+              type="text"
+              name={`escalation.triggerPhrases[${i}]`}
+              value={phrase}
+              class="bg-transparent border-none focus:outline-none text-xs w-24"
+            />
+            <button type="button" data-remove-trigger class="text-red-400 hover:text-red-600">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Notify Email</label>
+      <input
+        type="email"
+        name="escalation.notifyEmail"
+        value={notifyEmail}
+        placeholder="you@yourcompany.com"
+        class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+      />
+      <p class="text-xs text-gray-400 mt-1">You'll be notified when a lead needs human attention.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const triggersList = document.getElementById('triggers-list');
+
+  document.querySelector('[data-add-trigger]')?.addEventListener('click', () => {
+    const count = triggersList?.querySelectorAll('.trigger-tag').length || 0;
+    const span = document.createElement('span');
+    span.className = 'trigger-tag inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded text-xs font-medium';
+    span.dataset.index = String(count);
+    span.innerHTML = `
+      <input type="text" name="escalation.triggerPhrases[${count}]" placeholder="Phrase" class="bg-transparent border-none focus:outline-none text-xs w-24" />
+      <button type="button" data-remove-trigger class="text-red-400 hover:text-red-600">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    `;
+    triggersList?.appendChild(span);
+    const noTriggers = triggersList?.querySelector('span.text-gray-400');
+    if (noTriggers) noTriggers.remove();
+  });
+
+  triggersList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-remove-trigger]');
+    if (btn) {
+      btn.closest('.trigger-tag')?.remove();
+      if (triggersList.querySelectorAll('.trigger-tag').length === 0) {
+        triggersList.innerHTML = '<span class="text-sm text-gray-400">No triggers configured.</span>';
+      }
+    }
+  });
+</script>

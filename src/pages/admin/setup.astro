@@ -1,268 +1,410 @@
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
+import { db, businessConfig, users } from '../../lib/db/index.js';
+import { eq } from 'drizzle-orm';
 
-// Check setup status
-let setupStatus = { completed: false };
-let error: string | null = null;
+// Check setup status — read directly from DB
+let setupStatus = { completed: false, hasUsers: false };
 
 try {
-  // BOLT: Need GET /api/admin/setup/status
-  const response = await fetch(new URL('/api/admin/setup/status', Astro.url.origin));
-  if (response.ok) {
-    setupStatus = await response.json();
-  }
+  const [setupRow] = await db.select().from(businessConfig).where(eq(businessConfig.key, 'setup_complete')).limit(1);
+  setupStatus.completed = setupRow?.value != null;
+
+  const existingUsers = await db.select().from(users).limit(1);
+  setupStatus.hasUsers = existingUsers.length > 0;
 } catch (e) {
-  // If endpoint doesn't exist yet, assume setup is needed
-  setupStatus = { completed: false };
+  setupStatus = { completed: false, hasUsers: false };
 }
 
-// If setup is complete, redirect to dashboard
-if (setupStatus.completed) {
+// If setup complete and users exist, redirect to dashboard
+if (setupStatus.completed && setupStatus.hasUsers) {
   return Astro.redirect('/admin');
 }
 
-const steps = [
-  { id: 'business', label: 'Business Info', description: 'Tell us about your company' },
-  { id: 'llm', label: 'AI Provider', description: 'Choose your LLM provider' },
-  { id: 'email', label: 'Email', description: 'Configure email sending' },
-  { id: 'escalation', label: 'Escalation', description: 'Set up human handoff' },
-  { id: 'booking', label: 'Booking', description: 'Add your calendar link' },
-];
+// If setup complete but no users, show "Create Admin Account" form
+const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
 ---
 
 <AdminPage title="Setup" currentPath="/admin/setup">
   <div class="min-h-screen flex items-center justify-center p-8">
-    <div class="w-full max-w-2xl">
+    <div class="w-full max-w-md">
       <!-- Logo -->
       <div class="text-center mb-8">
         <a href="/" class="text-3xl font-bold font-heading">
           <span class="text-pounce-orange">P</span>
           <span class="text-charcoal">ounce</span>
         </a>
-        <h1 class="text-2xl font-bold font-heading text-charcoal mt-4 mb-2">Welcome to Pounce</h1>
-        <p class="text-gray-500">Let's get your AI lead response agent set up.</p>
       </div>
 
-      <!-- Stepper -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between">
-          {steps.map((step, index) => (
-            <div class="flex flex-col items-center">
-              <div class={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                index === 0
-                  ? 'bg-pounce-orange text-white'
-                  : 'bg-gray-100 text-gray-500'
-              }`}>
-                {index + 1}
+      {needsAdminOnly ? (
+        <!-- Phase 1→2 Migration: Create Admin Account -->
+        <div>
+          <h1 class="text-2xl font-bold font-heading text-charcoal mb-2">Create Your Admin Account</h1>
+          <p class="text-gray-500 mb-6">Your Pounce instance is configured, but you need to create an admin account to access the dashboard.</p>
+
+          <form id="admin-form" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                placeholder="Jane Smith"
+                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="you@company.com"
+                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                minlength={8}
+                placeholder="At least 8 characters"
+                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+              />
+            </div>
+
+            <div id="error-banner" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p id="error-message" class="text-sm text-red-600"></p>
+            </div>
+
+            <button
+              type="submit"
+              id="submit-btn"
+              class="w-full px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors"
+            >
+              Create Account & Sign In
+            </button>
+          </form>
+        </div>
+      ) : (
+        <!-- Fresh Setup Wizard -->
+        <div>
+          <h1 class="text-2xl font-bold font-heading text-charcoal mb-2">Welcome to Pounce</h1>
+          <p class="text-gray-500 mb-6">Let's get your AI lead response agent set up.</p>
+
+          <form id="setup-form" class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-6">
+            <!-- Step 0: Admin Account -->
+            <div>
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Admin Account</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
+                  <input
+                    type="text"
+                    name="admin.name"
+                    required
+                    placeholder="Jane Smith"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    name="admin.email"
+                    required
+                    placeholder="you@company.com"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                  <input
+                    type="password"
+                    name="admin.password"
+                    required
+                    minlength={8}
+                    placeholder="At least 8 characters"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
               </div>
-              <span class="text-xs text-gray-500 mt-1 hidden sm:block">{step.label}</span>
+              <hr class="border-gray-100 my-6" />
             </div>
-          ))}
-        </div>
-      </div>
 
-      <!-- Form -->
-      <form
-        action="/api/admin/setup"
-        method="POST"
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-6"
-      >
-        <!-- Step 1: Business Info -->
-        <div>
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Business Information</h2>
-          <div class="space-y-4">
+            <!-- Step 1: Business Info -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Business Name *</label>
-              <input
-                type="text"
-                name="business.name"
-                required
-                placeholder="Acme Inc"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Business Information</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Business Name *</label>
+                  <input
+                    type="text"
+                    name="business.name"
+                    required
+                    placeholder="Acme Inc"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
+                  <input
+                    type="text"
+                    name="business.tagline"
+                    placeholder="We make the best widgets"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                  <input
+                    type="url"
+                    name="business.website"
+                    placeholder="https://example.com"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="business.description"
+                    rows={3}
+                    placeholder="What does your business do?"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  ></textarea>
+                </div>
+              </div>
+              <hr class="border-gray-100 my-6" />
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
-              <input
-                type="text"
-                name="business.tagline"
-                placeholder="We make the best widgets"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Website</label>
-              <input
-                type="url"
-                name="business.website"
-                placeholder="https://example.com"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                name="business.description"
-                rows={3}
-                placeholder="What does your business do?"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              ></textarea>
-            </div>
-          </div>
-        </div>
 
-        <hr class="border-gray-100" />
-
-        <!-- Step 2: LLM Provider -->
-        <div>
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">AI Provider</h2>
-          <div class="space-y-4">
+            <!-- Step 2: LLM Provider -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">LLM Provider *</label>
-              <select
-                name="providers.llm"
-                required
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">AI Provider</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">LLM Provider *</label>
+                  <select
+                    name="providers.llm"
+                    required
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  >
+                    <option value="">Select a provider</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="ollama">Ollama (self-hosted or cloud)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <input
+                    type="text"
+                    name="providers.llmModel"
+                    placeholder="e.g. gpt-4o, claude-3.5-sonnet, glm-5.1:cloud"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
+                  <input
+                    type="password"
+                    name="providers.llmApiKey"
+                    required
+                    placeholder="sk-..."
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                  <p class="text-xs text-gray-400 mt-1">Your API key is encrypted and never shared.</p>
+                </div>
+              </div>
+              <hr class="border-gray-100 my-6" />
+            </div>
+
+            <!-- Step 3: Email Provider -->
+            <div>
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Email Configuration</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Email Provider *</label>
+                  <select
+                    name="providers.email"
+                    required
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  >
+                    <option value="">Select a provider</option>
+                    <option value="resend">Resend</option>
+                    <option value="sendgrid">SendGrid</option>
+                    <option value="mailgun">Mailgun</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Email API Key *</label>
+                  <input
+                    type="password"
+                    name="providers.emailApiKey"
+                    required
+                    placeholder="Your email provider API key"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">From Email Address *</label>
+                  <input
+                    type="email"
+                    name="providers.fromEmail"
+                    required
+                    placeholder="hello@yourcompany.com"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                </div>
+              </div>
+              <hr class="border-gray-100 my-6" />
+            </div>
+
+            <!-- Step 4: Escalation -->
+            <div>
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Escalation Rules</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Escalation Email *</label>
+                  <input
+                    type="email"
+                    name="escalation.notifyEmail"
+                    required
+                    placeholder="you@yourcompany.com"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                  <p class="text-xs text-gray-400 mt-1">You'll be notified when a lead needs human attention.</p>
+                </div>
+              </div>
+              <hr class="border-gray-100 my-6" />
+            </div>
+
+            <!-- Step 5: Booking -->
+            <div>
+              <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Booking Link</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Calendar URL</label>
+                  <input
+                    type="url"
+                    name="booking.url"
+                    placeholder="https://cal.com/yourname"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
+                  />
+                  <p class="text-xs text-gray-400 mt-1">Optional. The AI will offer this link when a lead wants to book a call.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="pt-4">
+              <div id="setup-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p id="setup-error-msg" class="text-sm text-red-600"></p>
+              </div>
+              <button
+                type="submit"
+                id="setup-btn"
+                class="w-full px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors"
               >
-                <option value="">Select a provider</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="ollama">Ollama (self-hosted)</option>
-              </select>
+                Complete Setup
+              </button>
+              <p class="text-xs text-gray-400 text-center mt-3">You can update these settings anytime from the admin dashboard.</p>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
-              <input
-                type="password"
-                name="providers.llmApiKey"
-                required
-                placeholder="sk-..."
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-              <p class="text-xs text-gray-400 mt-1">Your API key is encrypted and never shared.</p>
-            </div>
-          </div>
+          </form>
         </div>
-
-        <hr class="border-gray-100" />
-
-        <!-- Step 3: Email Provider -->
-        <div>
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Email Configuration</h2>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email Provider *</label>
-              <select
-                name="providers.email"
-                required
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              >
-                <option value="">Select a provider</option>
-                <option value="resend">Resend</option>
-                <option value="sendgrid">SendGrid</option>
-                <option value="mailgun">Mailgun</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email API Key *</label>
-              <input
-                type="password"
-                name="providers.emailApiKey"
-                required
-                placeholder="Your email provider API key"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">From Email Address *</label>
-              <input
-                type="email"
-                name="providers.fromEmail"
-                required
-                placeholder="hello@yourcompany.com"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-            </div>
-          </div>
-        </div>
-
-        <hr class="border-gray-100" />
-
-        <!-- Step 4: Escalation -->
-        <div>
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Escalation Rules</h2>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Escalation Email *</label>
-              <input
-                type="email"
-                name="escalation.notifyEmail"
-                required
-                placeholder="you@yourcompany.com"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-              <p class="text-xs text-gray-400 mt-1">You'll be notified when a lead needs human attention.</p>
-            </div>
-          </div>
-        </div>
-
-        <hr class="border-gray-100" />
-
-        <!-- Step 5: Booking -->
-        <div>
-          <h2 class="text-lg font-semibold font-heading text-charcoal mb-4">Booking Link</h2>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Calendar URL</label>
-              <input
-                type="url"
-                name="booking.url"
-                placeholder="https://cal.com/yourname"
-                class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-              />
-              <p class="text-xs text-gray-400 mt-1">Optional. The AI will offer this link when a lead wants to book a call.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Submit -->
-        <div class="pt-4">
-          <button
-            type="submit"
-            class="w-full px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors"
-          >
-            Complete Setup
-          </button>
-          <p class="text-xs text-gray-400 text-center mt-3">You can update these settings anytime from the admin dashboard.</p>
-        </div>
-      </form>
+      )}
     </div>
   </div>
 
   <script>
-    // Client-side form handling
-    const form = document.querySelector('form');
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
+    // Admin-only form (Phase 1→2 migration)
+    const adminForm = document.getElementById('admin-form');
+    if (adminForm) {
+      adminForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn') as HTMLButtonElement;
+        const errorBanner = document.getElementById('error-banner')!;
+        const errorMsg = document.getElementById('error-message')!;
 
-      try {
-        const response = await fetch('/api/admin/setup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+        btn.disabled = true;
+        btn.textContent = 'Creating account...';
+        errorBanner.classList.add('hidden');
 
-        if (response.ok) {
-          window.location.href = '/admin';
-        } else {
-          const err = await response.json().catch(() => ({ error: 'Setup failed' }));
-          alert(err.error || 'Setup failed. Please try again.');
+        try {
+          const name = (document.getElementById('name') as HTMLInputElement).value;
+          const email = (document.getElementById('email') as HTMLInputElement).value;
+          const password = (document.getElementById('password') as HTMLInputElement).value;
+
+          const res = await fetch('/api/admin/setup/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+          });
+
+          if (res.ok) {
+            window.location.href = '/admin';
+          } else {
+            const data = await res.json();
+            errorMsg.textContent = data.error || 'Failed to create account.';
+            errorBanner.classList.remove('hidden');
+          }
+        } catch {
+          errorMsg.textContent = 'Network error. Please try again.';
+          errorBanner.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Create Account & Sign In';
         }
-      } catch (err) {
-        alert('Network error. Please try again.');
-      }
-    });
+      });
+    }
+
+    // Full setup form
+    const setupForm = document.getElementById('setup-form');
+    if (setupForm) {
+      setupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('setup-btn') as HTMLButtonElement;
+        const errorBanner = document.getElementById('setup-error')!;
+        const errorMsg = document.getElementById('setup-error-msg')!;
+
+        btn.disabled = true;
+        btn.textContent = 'Setting up...';
+        errorBanner.classList.add('hidden');
+
+        const formData = new FormData(setupForm);
+        const data: Record<string, unknown> = {};
+
+        for (const [key, value] of formData.entries()) {
+          // Convert checkboxes
+          (data as Record<string, unknown>)[key] = value === 'on' ? true : value;
+        }
+
+        try {
+          const res = await fetch('/api/admin/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+
+          if (res.ok) {
+            window.location.href = '/admin';
+          } else {
+            const err = await res.json().catch(() => ({ error: 'Setup failed' }));
+            errorMsg.textContent = err.error || 'Setup failed. Please try again.';
+            errorBanner.classList.remove('hidden');
+          }
+        } catch {
+          errorMsg.textContent = 'Network error. Please try again.';
+          errorBanner.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Complete Setup';
+        }
+      });
+    }
   </script>
 </AdminPage>

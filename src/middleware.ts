@@ -34,7 +34,10 @@ function isAuthPath(pathname: string): boolean {
 }
 
 function isSetupPath(pathname: string): boolean {
-  return pathname === '/admin/setup' || pathname === '/api/admin/setup' || pathname === '/api/admin/setup/status';
+  return pathname === '/admin/setup' ||
+    pathname === '/api/admin/setup' ||
+    pathname === '/api/admin/setup/status' ||
+    pathname === '/api/admin/setup/admin';
 }
 
 function isAdminPath(pathname: string): boolean {

@@ -1,41 +1,11 @@
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { db, leads } from '../../lib/db/index.js';
+import { desc } from 'drizzle-orm';
 
-// Fetch leads from API
-let leadsData: {
-  leads: Array<{
-    id: string;
-    name: string | null;
-    email: string;
-    company: string | null;
-    status: string;
-    source: string;
-    message: string | null;
-    createdAt: Date;
-  }>;
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-} = { leads: [], pagination: { page: 1, limit: 25, total: 0, totalPages: 0 } };
-
-let error: string | null = null;
-
-try {
-  const url = new URL('/api/admin/leads', Astro.url.origin);
-  const response = await fetch(url.toString());
-  if (response.ok) {
-    leadsData = await response.json();
-  } else {
-    const errData = await response.json().catch(() => ({ error: 'Failed to fetch leads' }));
-    error = errData.error || `Error ${response.status}`;
-  }
-} catch (e) {
-  error = 'Network error. Please try again.';
-}
+// Read leads directly from DB
+const allLeads = await db.select().from(leads).orderBy(desc(leads.createdAt)).limit(100);
 
 const statusFilters = [
   { value: 'all', label: 'All Leads' },
@@ -69,6 +39,12 @@ const statusLabels: Record<string, string> = {
   escalated: 'Escalated',
   opted_out: 'Opted Out',
 };
+
+// Filter by status query param
+const statusFilter = Astro.url.searchParams.get('status');
+const filteredLeads = statusFilter && statusFilter !== 'all'
+  ? allLeads.filter(l => l.status === statusFilter)
+  : allLeads;
 ---
 
 <AdminPage title="Leads" currentPath="/admin/leads">
@@ -79,13 +55,6 @@ const statusLabels: Record<string, string> = {
         <h1 class="text-3xl font-bold font-heading text-charcoal mb-2">Leads</h1>
         <p class="text-gray-500">Manage and track your lead pipeline</p>
       </div>
-
-      <!-- Error State -->
-      {error && (
-        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm text-red-600">{error}</p>
-        </div>
-      )}
 
       <!-- Filters -->
       <div class="flex flex-wrap gap-2 mb-6">
@@ -117,7 +86,7 @@ const statusLabels: Record<string, string> = {
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-              {leadsData.leads.length === 0 && !error && (
+              {filteredLeads.length === 0 && (
                 <tr>
                   <td colspan="5" class="py-12 text-center">
                     <div class="text-gray-400">
@@ -127,7 +96,7 @@ const statusLabels: Record<string, string> = {
                   </td>
                 </tr>
               )}
-              {leadsData.leads.map((lead) => (
+              {filteredLeads.map((lead) => (
                 <tr class="hover:bg-gray-50 transition-colors">
                   <td class="py-4 px-6">
                     <div class="flex items-center gap-3">
@@ -137,7 +106,6 @@ const statusLabels: Record<string, string> = {
                       <div>
                         <p class="font-medium text-charcoal">{lead.name || 'Unknown'}</p>
                         <p class="text-sm text-gray-500">{lead.email}</p>
-                        {lead.company && <p class="text-sm text-gray-400">{lead.company}</p>}
                       </div>
                     </div>
                   </td>
@@ -153,47 +121,18 @@ const statusLabels: Record<string, string> = {
                     <span class="text-sm text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</span>
                   </td>
                   <td class="py-4 px-6 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <a
-                        href={`/admin/conversations?leadId=${lead.id}`}
-                        class="text-sm text-pounce-orange hover:text-pounce-orange-dark font-medium"
-                      >
-                        View
-                      </a>
-                    </div>
+                    <a
+                      href={`/admin/conversations?leadId=${lead.id}`}
+                      class="text-sm text-pounce-orange hover:text-pounce-orange-dark font-medium"
+                    >
+                      View
+                    </a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        <!-- Pagination -->
-        {leadsData.pagination.totalPages > 1 && (
-          <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-            <span class="text-sm text-gray-500">
-              Page {leadsData.pagination.page} of {leadsData.pagination.totalPages}
-            </span>
-            <div class="flex gap-2">
-              {leadsData.pagination.page > 1 && (
-                <a
-                  href={`/admin/leads?page=${leadsData.pagination.page - 1}`}
-                  class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Previous
-                </a>
-              )}
-              {leadsData.pagination.page < leadsData.pagination.totalPages && (
-                <a
-                  href={`/admin/leads?page=${leadsData.pagination.page + 1}`}
-                  class="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Next
-                </a>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   </AdminLayout>

@@ -1,0 +1,83 @@
+---
+// FAQ section component
+// Props: faq (question+answer array)
+
+interface Props {
+  faq?: Array<{ question: string; answer: string }>;
+}
+
+const { faq = [] } = Astro.props;
+---
+
+<div id="section-faq" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold font-heading text-charcoal">FAQ</h2>
+    <button type="button" data-add-faq class="px-3 py-1.5 bg-pounce-orange text-white rounded-lg text-xs font-medium hover:bg-pounce-orange-dark transition-colors">
+      + Add FAQ
+    </button>
+  </div>
+  <div id="faq-list" class="space-y-3">
+    {faq.length === 0 && (
+      <p class="text-sm text-gray-400">No FAQ configured.</p>
+    )}
+    {faq.map((item, i) => (
+      <div class="faq-item p-3 border border-gray-200 rounded-lg" data-index={i}>
+        <div class="flex items-center justify-between mb-2">
+          <input
+            type="text"
+            name={`faq[${i}].question`}
+            value={item.question}
+            placeholder="Question"
+            class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1"
+          />
+          <button type="button" data-remove-faq class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <textarea
+          name={`faq[${i}].answer`}
+          rows={2}
+          placeholder="Answer"
+          class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"
+        >{item.answer}</textarea>
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  const faqList = document.getElementById('faq-list');
+
+  document.querySelector('[data-add-faq]')?.addEventListener('click', () => {
+    const count = faqList?.querySelectorAll('.faq-item').length || 0;
+    const div = document.createElement('div');
+    div.className = 'faq-item p-3 border border-gray-200 rounded-lg';
+    div.dataset.index = String(count);
+    div.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <input type="text" name="faq[${count}].question" placeholder="Question" class="text-sm font-medium text-charcoal bg-transparent border-none focus:outline-none flex-1" />
+        <button type="button" data-remove-faq class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <textarea name="faq[${count}].answer" rows="2" placeholder="Answer" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"></textarea>
+    `;
+    faqList?.appendChild(div);
+    const noFaq = faqList?.querySelector('p.text-gray-400');
+    if (noFaq) noFaq.remove();
+  });
+
+  faqList?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-remove-faq]');
+    if (btn) {
+      btn.closest('.faq-item')?.remove();
+      if (faqList.querySelectorAll('.faq-item').length === 0) {
+        faqList.innerHTML = '<p class="text-sm text-gray-400">No FAQ configured.</p>';
+      }
+    }
+  });
+</script>

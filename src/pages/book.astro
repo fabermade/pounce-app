@@ -1,113 +1,169 @@
 ---
-// Booking page with Cal.com embed
-const calLink = 'https://cal.com/pounce';
+/**
+ * Public Booking Page — /book
+ *
+ * Renders a Cal.com or Calendly embed based on business config.
+ * Falls back to a simple "Book a Call" link if no embed is configured.
+ */
+
+import { db, businessConfig } from '@/lib/db/index.js';
+import { eq } from 'drizzle-orm';
+
+// Load booking config
+const [bookingConfig] = await db
+  .select()
+  .from(businessConfig)
+  .where(eq(businessConfig.key, 'booking'))
+  .limit(1);
+
+const booking = (bookingConfig?.value ?? {}) as Record<string, string>;
+
+const bookingUrl = booking.url ?? '';
+const bookingProvider = booking.provider ?? (bookingUrl.includes('calendly') ? 'calendly' : 'calcom');
+const bookingCta = booking.cta ?? 'Book a Call';
+
+// Also load business info for branding
+const [bizConfig] = await db
+  .select()
+  .from(businessConfig)
+  .where(eq(businessConfig.key, 'business'))
+  .limit(1);
+
+const business = (bizConfig?.value ?? {}) as Record<string, string>;
+const businessName = business.name || 'Us';
+const businessTagline = business.tagline || '';
+const isCalendly = bookingProvider === 'calendly';
+const isCalcom = bookingProvider === 'calcom' && bookingUrl;
 ---
 
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Book a Call | Pounce</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <style>
-      @import "tailwindcss";
-      
-      @theme {
-        --color-pounce-orange: #F5A623;
-        --color-pounce-orange-dark: #E09620;
-        --color-charcoal: #1E1E1E;
-        --color-charcoal-light: #2D2D2D;
-        --color-cream: #FAF7F2;
-        --font-heading: 'Space Grotesk', system-ui, sans-serif;
-        --font-body: 'Inter', system-ui, sans-serif;
-      }
-      
-      html {
-        font-family: var(--font-body);
-        background-color: var(--color-cream);
-        color: var(--color-charcoal);
-      }
-      
-      h1, h2, h3, h4, h5, h6 {
-        font-family: var(--font-heading);
-      }
-    </style>
-  </head>
-  <body class="min-h-screen">
-    <div class="max-w-4xl mx-auto px-6 py-12">
-      <!-- Header -->
-      <div class="text-center mb-12">
-        <div class="mb-6">
-          <a href="/" class="text-3xl font-bold font-heading">
-            <span class="text-pounce-orange">P</span>
-            <span class="text-charcoal">ounce</span>
-          </a>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book a Call — {businessName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fafafa;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .header .powered {
+      margin-left: auto;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .booking-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .no-booking {
+      text-align: center;
+      max-width: 400px;
+    }
+    .no-booking h2 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    .no-booking p {
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    .no-booking a {
+      display: inline-block;
+      background: #FF6B35;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .no-booking a:hover {
+      background: #e55a2b;
+    }
+    #calcom-embed {
+      width: 100%;
+      max-width: 800px;
+      min-height: 600px;
+    }
+    .calendly-inline-widget {
+      width: 100%;
+      min-width: 320px;
+      height: 700px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{businessName}</h1>
+    {businessTagline && <span class="powered">{businessTagline}</span>}
+  </div>
+
+  <div class="booking-container">
+    {bookingUrl ? (
+      isCalendly ? (
+        <div class="calendly-inline-widget" data-url={bookingUrl}></div>
+      ) : isCalcom ? (
+        <div id="calcom-embed"></div>
+      ) : (
+        <div class="no-booking">
+          <h2>📅 {bookingCta}</h2>
+          <p>Schedule a time that works for you.</p>
+          <a href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingCta}</a>
         </div>
-        <h1 class="text-4xl font-bold font-heading text-charcoal mb-4">Book a Call</h1>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-          Ready to see how Pounce can transform your lead response? Book a 30-minute demo with our team.
-        </p>
+      )
+    ) : (
+      <div class="no-booking">
+        <h2>📅 {bookingCta}</h2>
+        <p>Schedule a time that works for you.</p>
+        <p style="color: #9ca3af; font-size: 14px;">No booking system configured yet. Please contact us directly.</p>
       </div>
+    )}
+  </div>
 
-      <!-- Cal.com Embed Placeholder -->
-      <!-- BOLT: Need Cal.com embed script -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-        <div class="text-center py-12">
-          <div class="w-16 h-16 bg-pounce-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-pounce-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h2 class="text-xl font-semibold font-heading text-charcoal mb-2">Calendar Integration</h2>
-          <p class="text-gray-600 mb-6">Connect your Cal.com account to enable booking links in AI responses.</p>
-          <a
-            href={calLink}
-            target="_blank"
-            class="inline-flex items-center gap-2 px-6 py-3 bg-pounce-orange text-white rounded-lg font-medium hover:bg-pounce-orange-dark transition-colors"
-          >
-            Configure Calendar
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
-        </div>
-      </div>
+  {isCalendly && bookingUrl && (
+    <script is:inline src="https://assets.calendly.com/assets/external/widget.js" async></script>
+  )}
 
-      <!-- Features -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div class="w-10 h-10 bg-pounce-orange/10 rounded-lg flex items-center justify-center mb-4">
-            <svg class="w-5 h-5 text-pounce-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <h3 class="font-semibold text-charcoal mb-2">Instant Response</h3>
-          <p class="text-sm text-gray-600">AI responds to leads in under 60 seconds, 24/7.</p>
-        </div>
+  {isCalcom && bookingUrl && (
+    <script is:inline src="https://app.cal.com/embed/embed.js" data-url={bookingUrl} async></script>
+  )}
 
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div class="w-10 h-10 bg-pounce-orange/10 rounded-lg flex items-center justify-center mb-4">
-            <svg class="w-5 h-5 text-pounce-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <h3 class="font-semibold text-charcoal mb-2">Human Handoff</h3>
-          <p class="text-sm text-gray-600">Seamless escalation to your team when needed.</p>
-        </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <div class="w-10 h-10 bg-pounce-orange/10 rounded-lg flex items-center justify-center mb-4">
-            <svg class="w-5 h-5 text-pounce-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <h3 class="font-semibold text-charcoal mb-2">Analytics</h3>
-          <p class="text-sm text-gray-600">Track response rates, booking conversions, and more.</p>
-        </div>
-      </div>
-    </div>
-  </body>
+  {isCalcom && bookingUrl && (
+    <script is:inline>
+      document.addEventListener('DOMContentLoaded', function() {
+        var container = document.getElementById('calcom-embed');
+        if (container && window.Cal) {
+          window.Cal('inline', {
+            elementOrSelector: '#calcom-embed',
+            config: { layout: 'month_view' }
+          });
+          window.Cal('ui', {
+            styles: { branding: { brandColor: '#FF6B35' } }
+          });
+        }
+      });
+    </script>
+  )}
+</body>
 </html>

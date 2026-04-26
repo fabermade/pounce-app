@@ -3,10 +3,11 @@
  * 
  * Loads conversations, appends messages, tracks AI message counts,
  * enforces the 10-message cap per conversation.
+ * Supports threading by In-Reply-To / References headers.
  */
 
 import { db, conversations, messages, leads } from '../db/index.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import type { Message } from '../db/index.js';
 
 // ─── Constants ─────────────────────────────────────────────────────
@@ -129,4 +130,105 @@ export async function addMessage(
   }
 
   return message!;
+}
+
+// ─── Threading ───────────────────────────────────────────────────────
+
+/**
+ * Find a conversation by email threading headers.
+ *
+ * Strategy (in order of accuracy):
+ * 1. In-Reply-To: match to a message's messageId in metadata
+ * 2. References: scan for any known message IDs
+ * 3. Fallback: most recent open conversation for this lead
+ * 4. No match: return null (caller should create new conversation)
+ */
+export async function findConversationByThread(
+  leadId: string,
+  inReplyTo?: string,
+  references?: string,
+): Promise<string | null> {
+  // Strategy 1: Match by In-Reply-To header
+  if (inReplyTo) {
+    // JSONB query — Drizzle doesn't support metadata->>'key' natively
+    const threadMatch = await db.execute(
+      sql`SELECT conversation_id FROM messages WHERE metadata->>'emailMessageId' = ${inReplyTo} LIMIT 1`
+    );
+
+    const rows = threadMatch.rows ?? threadMatch;
+    if (Array.isArray(rows) && rows.length > 0) {
+      const row = rows[0] as Record<string, unknown>;
+      return String(row.conversation_id ?? row.conversationId ?? '');
+    }
+  }
+
+  // Strategy 2: Check References header for any known message IDs
+  if (references) {
+    // References is a space-separated list of Message-IDs
+    const refIds = references.split(/\s+/).filter(Boolean);
+    for (const refId of refIds) {
+      const refMatch = await db.execute(
+        sql`SELECT conversation_id FROM messages WHERE metadata->>'emailMessageId' = ${refId} LIMIT 1`
+      );
+      const rows = refMatch.rows ?? refMatch;
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0] as Record<string, unknown>;
+        return String(row.conversation_id ?? row.conversationId ?? '');
+      }
+    }
+  }
+
+  // Strategy 3: Most recent open conversation for this lead
+  const [recentConv] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.leadId, leadId),
+        eq(conversations.humanTakeover, false),
+      )
+    )
+    .orderBy(desc(conversations.createdAt))
+    .limit(1);
+
+  if (recentConv) {
+    return recentConv.id;
+  }
+
+  // No match found — caller should create a new conversation
+  return null;
+}
+
+/**
+ * Find or create a conversation for an inbound email.
+ *
+ * Uses threading headers to match to existing conversations.
+ * If no match found, creates a new conversation.
+ */
+export async function findOrCreateConversation(
+  leadId: string,
+  inboxProvider: string,
+  externalId: string,
+  inReplyTo?: string,
+  references?: string,
+): Promise<{ conversationId: string; isNew: boolean }> {
+  // Try threading match first
+  const existingId = await findConversationByThread(leadId, inReplyTo, references);
+
+  if (existingId) {
+    return { conversationId: existingId, isNew: false };
+  }
+
+  // No match — create new conversation
+  const [conv] = await db
+    .insert(conversations)
+    .values({
+      leadId,
+      inboxProvider,
+      externalId,
+      awaitingReply: true,
+    })
+    .returning();
+
+  return { conversationId: conv!.id, isNew: true };
 }

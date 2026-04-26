@@ -1,7 +1,9 @@
 ---
+import AdminPage from '../../../layouts/AdminPage.astro';
 import AdminLayout from '../../../components/admin/AdminLayout';
 ---
 
+<AdminPage title="New Form" currentPath="/admin/forms">
 <AdminLayout currentPath="/admin/forms">
   <div class="p-8 max-w-6xl mx-auto">
     <div class="mb-8">
@@ -90,6 +92,7 @@ import AdminLayout from '../../../components/admin/AdminLayout';
     </div>
   </div>
 </AdminLayout>
+</AdminPage>
 
 <script>
   interface FormField {

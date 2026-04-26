@@ -1,4 +1,5 @@
 ---
+import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
 // Fetch forms from API
@@ -20,6 +21,7 @@ try {
 }
 ---
 
+<AdminPage title="Forms" currentPath="/admin/forms">
 <AdminLayout currentPath="/admin/forms">
   <div class="p-8 max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-8">
@@ -113,6 +115,7 @@ try {
     </div>
   </div>
 </AdminLayout>
+</AdminPage>
 
 <script>
   const deleteDialog = document.getElementById('delete-dialog');

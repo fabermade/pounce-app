@@ -1,4 +1,5 @@
 ---
+import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
 // Fetch users from API
@@ -20,6 +21,7 @@ try {
 }
 ---
 
+<AdminPage title="Users" currentPath="/admin/users">
 <AdminLayout currentPath="/admin/users">
   <div class="p-8 max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-8">
@@ -219,6 +221,7 @@ try {
     </div>
   </div>
 </AdminLayout>
+</AdminPage>
 
 <script>
   // Invite dialog

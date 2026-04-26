@@ -122,45 +122,46 @@ try {
   const deleteCancel = document.getElementById('delete-cancel') as HTMLElement | null;
   const deleteConfirm = document.getElementById('delete-confirm') as HTMLButtonElement | null;
   const deleteFormNameEl = document.getElementById('delete-form-name') as HTMLElement | null;
-  if (!deleteDialog || !deleteCancel || !deleteConfirm || !deleteFormNameEl) return;
-  let deleteFormId = '';
+  if (deleteDialog && deleteCancel && deleteConfirm && deleteFormNameEl) {
+    let deleteFormId = '';
 
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const el = btn as HTMLElement;
-      deleteFormId = el.dataset.formId || '';
-      deleteFormNameEl.textContent = el.dataset.formName || '';
-      deleteDialog.classList.remove('hidden');
-      deleteDialog.classList.add('flex');
-    });
-  });
-
-  deleteCancel.addEventListener('click', () => {
-    deleteDialog.classList.add('hidden');
-    deleteDialog.classList.remove('flex');
-  });
-
-  deleteConfirm.addEventListener('click', async () => {
-    if (!deleteFormId) return;
-    deleteConfirm.disabled = true;
-    deleteConfirm.textContent = 'Deleting...';
-
-    try {
-      const res = await fetch(`/api/admin/forms/${deleteFormId}`, {
-        method: 'DELETE',
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = btn as HTMLElement;
+        deleteFormId = el.dataset.formId || '';
+        deleteFormNameEl.textContent = el.dataset.formName || '';
+        deleteDialog.classList.remove('hidden');
+        deleteDialog.classList.add('flex');
       });
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete form');
+    });
+
+    deleteCancel.addEventListener('click', () => {
+      deleteDialog.classList.add('hidden');
+      deleteDialog.classList.remove('flex');
+    });
+
+    deleteConfirm.addEventListener('click', async () => {
+      if (!deleteFormId) return;
+      deleteConfirm.disabled = true;
+      deleteConfirm.textContent = 'Deleting...';
+
+      try {
+        const res = await fetch(`/api/admin/forms/${deleteFormId}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Failed to delete form');
+          deleteConfirm.disabled = false;
+          deleteConfirm.textContent = 'Delete';
+        }
+      } catch (err) {
+        alert('Network error. Please try again.');
         deleteConfirm.disabled = false;
         deleteConfirm.textContent = 'Delete';
       }
-    } catch (err) {
-      alert('Network error. Please try again.');
-      deleteConfirm.disabled = false;
-      deleteConfirm.textContent = 'Delete';
-    }
-  });
+    });
+  }
 </script>

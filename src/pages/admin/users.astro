@@ -232,8 +232,7 @@ try {
   const inviteSubmit = document.getElementById('invite-submit') as HTMLButtonElement | null;
   const inviteError = document.getElementById('invite-error') as HTMLElement | null;
   const inviteSuccess = document.getElementById('invite-success') as HTMLElement | null;
-  if (!inviteDialog || !inviteBtn || !inviteCancel || !inviteForm || !inviteSubmit || !inviteError || !inviteSuccess) return;
-
+  if (inviteDialog && inviteBtn && inviteCancel && inviteForm && inviteSubmit && inviteError && inviteSuccess) {
   inviteBtn.addEventListener('click', () => {
     inviteDialog.classList.remove('hidden');
     inviteDialog.classList.add('flex');
@@ -294,6 +293,7 @@ try {
       }
     });
   }
+  }
 
   // Edit dialog
   const editDialog = document.getElementById('edit-dialog') as HTMLElement | null;
@@ -301,8 +301,7 @@ try {
   const editCancel = document.getElementById('edit-cancel') as HTMLElement | null;
   const editSubmit = document.getElementById('edit-submit') as HTMLButtonElement | null;
   const editError = document.getElementById('edit-error') as HTMLElement | null;
-  if (!editDialog || !editForm || !editCancel || !editSubmit || !editError) return;
-
+  if (editDialog && editForm && editCancel && editSubmit && editError) {
   document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const user = JSON.parse((btn as HTMLElement).dataset.user || '{}');
@@ -359,13 +358,14 @@ try {
       editSubmit.textContent = 'Save';
     }
   });
+  }
 
   // Delete dialog
   const deleteDialog = document.getElementById('delete-dialog') as HTMLElement | null;
   const deleteCancel = document.getElementById('delete-cancel') as HTMLElement | null;
   const deleteConfirm = document.getElementById('delete-confirm') as HTMLButtonElement | null;
   const deleteUserNameEl = document.getElementById('delete-user-name') as HTMLElement | null;
-  if (!deleteDialog || !deleteCancel || !deleteConfirm || !deleteUserNameEl) return;
+  if (deleteDialog && deleteCancel && deleteConfirm && deleteUserNameEl) {
   let deleteUserId = '';
 
   document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -406,4 +406,5 @@ try {
       deleteConfirm.textContent = 'Delete';
     }
   });
+  }
 </script>

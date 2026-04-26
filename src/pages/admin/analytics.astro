@@ -123,7 +123,7 @@ const statusLabels: Record<string, string> = {
               <div class="flex items-start gap-3">
                 <div class="w-2 h-2 bg-pounce-orange rounded-full mt-2"></div>
                 <div>
-                  <p class="text-sm text-charcoal">{event.type.replace(/_/g, ' ')}</p>
+                  <p class="text-sm text-charcoal">{event.eventType.replace(/_/g, ' ')}</p>
                   <p class="text-xs text-gray-400">{new Date(event.createdAt).toLocaleString()}</p>
                 </div>
               </div>

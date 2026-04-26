@@ -161,7 +161,7 @@
 |---|------|-------|-----|
 | 5.1 | **Form submit → lead pipeline** — Wire form submissions through the response pipeline | `src/pages/api/f/[slug]/submit.ts` update, `src/lib/core/pipeline.ts` | 1h |
 | 5.2 | **Form analytics** — Track views and submissions, add `form_views` table | `src/lib/db/schema.ts` update, `src/pages/api/admin/forms/[id].ts` update | 45m |
-| 5.3 | **Embed script** — Vanilla JS, < 15KB, renders form from config API | `public/embed.js` or `src/embed/` | 2h |
+| 5.3 | **Embed script** — Vanilla JS `<script>` tag, < 15KB, renders form from config API | `public/embed.js` | 2h |
 | 5.4 | **Spam protection** — Honeypot field, rate limiting, reCAPTCHA optional | `src/pages/api/f/[slug]/submit.ts` update | 30m |
 
 **Bolt total: ~4.25h**
@@ -171,17 +171,19 @@
 | # | Task | Files | Est |
 |---|------|-------|-----|
 | 5P.1 | **Form editor upgrade** — Drag-and-drop field reorder, live preview panel | `src/pages/admin/forms/[id].astro` update | 1.5h |
-| 5P.2 | **Embed modal** — Show snippet (script tag, React component, iframe) with copy button | `src/components/admin/EmbedModal.tsx` | 30m |
+| 5P.2 | **Embed modal** — Show script tag snippet with copy button | `src/components/admin/EmbedModal.tsx` | 20m |
 | 5P.3 | **Theme picker** — Light/dark/branded, primary color, border radius | `src/components/admin/ThemePicker.tsx` | 30m |
 | 5P.4 | **Form analytics page** — Submission chart, conversion rate, source breakdown | `src/pages/admin/forms/[id]/analytics.astro` | 1h |
 
-**Pip total: ~3.5h**
+**Pip total: ~3h**
 
 ---
 
 ## Phase 6: License Client (Priority: Low — parallel with license server)
 
-**Goal:** Pounce checks the license server on startup and every 24h. Blocks admin + sending on invalid license.
+**Goal:** Pounce checks the license server on startup and every 24h. License gates by number of installs, not by feature.
+
+**License model:** Single license = single install. No feature tiers. All features available to every license. The only limit is install count.
 
 ### What exists
 - License server spec in `trueleads-license/docs/IMPLEMENTATION-PLAN.md`
@@ -193,11 +195,10 @@
 |---|------|-------|-----|
 | 6.1 | **License client lib** — Verify, activate, deactivate, cache result, 72h grace period | `src/lib/license/client.ts` | 1h |
 | 6.2 | **License middleware** — Block admin + sending on invalid license, show warning | `src/middleware.ts` update | 30m |
-| 6.3 | **License settings UI** — Enter key, show status, domain binding info | `src/pages/api/admin/license.ts`, settings page update | 45m |
-| 6.4 | **Feature flags from license** — Gate features per tier | `src/lib/license/features.ts` | 30m |
-| 6.5 | **Grace period logic** — 72h full access if check fails, 14-day watermark if expired, then read-only | `src/lib/license/grace.ts` | 30m |
+| 6.3 | **License settings UI** — Enter key, show status (valid/expired/grace), domain binding, install count | `src/pages/api/admin/license.ts`, settings page update | 45m |
+| 6.4 | **Grace period logic** — 72h full access if check fails, 14-day watermark if expired, then read-only | `src/lib/license/grace.ts` | 30m |
 
-**Bolt total: ~3.5h**
+**Bolt total: ~3h**
 
 ---
 
@@ -244,7 +245,7 @@ Phase 6 (License) ────────────────────�
 | 5. Forms | 4.25h | 3.5h | — |
 | 6. License | 3.5h | — | — |
 | 7. Distribution | — | — | 4h |
-| **Total** | **19.75h** | **7.5h** | **4.75h** |
+| **Total** | **19.25h** | **7h** | **4.75h** |
 
 ## Priority Recommendation
 
@@ -255,10 +256,9 @@ Phase 6 (License) ────────────────────�
 5. **Phase 6** — License client gates self-serve deployment.
 6. **Phase 7** — Distribution is last once everything works.
 
-## Decisions Needed from Ty
+## Decisions (Resolved)
 
-- **Phase 3 priority:** Start with Resend-only (already working) or build Gmail/Outlook too?
-- **Form embed:** Script tag only, or also React component + iframe?
-- **License tiers:** What features gate at which tier? (single_provider, multi_provider, analytics, etc.)
-- **Pricing:** Not setting numbers (rule 3a), but need tier boundaries defined.
-- **Self-host timeline:** Is Docker distribution v1 or v2?
+- **Phase 3:** Build all three inbox providers (Resend, Gmail, Outlook). Gmail and Outlook are integral, not optional.
+- **Form embed:** Script tag only for v1. Clean, simple, works everywhere. No React component or iframe needed.
+- **License model:** Not tiered by feature. Limit by number of installs. Single license = single install. No feature gating.
+- **Docker distribution:** Patch decides what's best. Phase 7 is last priority.

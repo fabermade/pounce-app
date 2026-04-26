@@ -21,8 +21,14 @@ const { enabled = false, webhookUrl = '' } = Astro.props;
       </div>
       <label class="relative inline-flex items-center cursor-pointer">
         <input
+          type="hidden"
+          name="agent.enabled"
+          value="false"
+        />
+        <input
           type="checkbox"
           name="agent.enabled"
+          value="true"
           checked={enabled}
           class="sr-only peer"
         />

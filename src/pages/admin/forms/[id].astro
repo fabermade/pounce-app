@@ -220,8 +220,10 @@ try {
 
 <script>
   const formDataEl = document.getElementById('form-data');
-  if (!formDataEl) return;
-  const initialForm = JSON.parse(formDataEl.textContent || '{}');
+  const initialForm = formDataEl ? JSON.parse(formDataEl.textContent || '{}') : {};
+  if (!formDataEl) {
+    console.warn('Form data element not found, form editor disabled');
+  }
 
   interface FormField {
     id: string;

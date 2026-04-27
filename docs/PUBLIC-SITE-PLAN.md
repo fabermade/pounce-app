@@ -208,7 +208,7 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 
 | Task | Hours | Depends On |
 |------|-------|------------|
-| B1. Stripe products/prices setup | 0.5 | Ty creates Stripe account |
+| B1. Stripe products/prices setup | 0.5 | Ty provides Stripe keys |
 | B2. `/api/stripe/checkout` route | 1.5 | B1 |
 | B3. `/api/stripe/webhook` handler | 2 | B1 |
 | B4. License key generation on payment | 1 | B3 |
@@ -230,14 +230,33 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 
 ---
 
-## Open Decisions (Ty's Call)
+## Decisions Made
 
-1. **Stripe account** — Do you have one or need to create it?
-2. **Enterprise pricing** — "Contact us" link to `/contact`, or specific dollar amount?
-3. **Free trial?** — 14-day free trial before charging, or pay from day 1?
-4. **Blog** — Include now or defer?
-5. **Domain split** — Keep everything on `pouncefirst.com` or split `license.pouncefirst.com` for the license server API?
-6. **Logo/branding** — Do you have Pounce logo/colors, or does Pip design from scratch?
+1. ✅ **Stripe account** — Ty has one
+2. ✅ **Enterprise pricing** — "Contact us" → `/contact` form
+3. ✅ **Free trial** — 7 days, then pay
+4. ✅ **Blog** — Include now
+5. ✅ **Domain** — Keep everything on `pouncefirst.com`. License server API routes under `/api/license/*`. No subdomain split. Simpler for Stripe webhooks, SSL, and CORS. License server code deploys as a separate Vercel project but can be mounted as API routes later.
+6. ✅ **Logo/branding** — Reuse existing Pounce brand specs from the admin app. Create a reusable SVG logo component. Designer refines later.
+
+### Pounce Brand Specs (from admin app)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-pounce-orange` | `#F5A623` | Primary brand color |
+| `--color-pounce-orange-dark` | `#E09620` | Hover/active state |
+| `--color-pounce-orange-light` | `#FDB913` | Accent/highlight |
+| `--color-charcoal` | `#1E1E1E` | Primary text |
+| `--color-charcoal-light` | `#2D2D2D` | Secondary text |
+| `--color-charcoal-muted` | `#666666` | Muted text |
+| `--color-cream` | `#FAF7F2` | Page background |
+| `--color-cream-dark` | `#F0EDE8` | Card background |
+| `--font-heading` | `Space Grotesk` | Headings, logo |
+| `--font-body` | `Inter` | Body text |
+
+### Logo SVG
+
+Reusable `<PounceLogo>` component — stylized "P" in `pounce-orange` with wordmark "ounce" in `charcoal`. Both icon-only and icon+wordmark variants. Pip creates as SVG, drops in `src/components/PounceLogo.astro`.
 
 ---
 

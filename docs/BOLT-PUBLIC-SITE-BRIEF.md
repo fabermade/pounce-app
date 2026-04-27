@@ -12,9 +12,48 @@
 
 You're building the money pipe, the free tier backend, and integrating Stripe with the existing license server. Pip is building the public site UI in parallel.
 
-The license server is already built on `bolt/license-server` in the `trueleads-license` repo. It's a Cloudflare Workers service (Hono + Drizzle + Neon). Your work on the Pounce app side calls its API to generate/upgrade/downgrade license keys.
+The license server is already built on `bolt/license-server` in the `trueleads-license` repo. It currently has both `wrangler.toml` (Cloudflare Workers) and `vercel.json` (Vercel) configs. **Deploy to Vercel.** See the ⚠️ Deployment Decision section below.
 
 **Free tier is the funnel.** No credit card, no friction. Sign up, get a license key, start responding to leads. At 500 leads/month, AI auto-reply pauses — leads still arrive, business still sees them, just no AI response. That's the upgrade path.
+
+---
+
+## ⚠️ Concerns & Decisions
+
+### 1. Deployment Target: Vercel, not Cloudflare Workers
+
+The `bolt/license-server` branch has both `wrangler.toml` and `vercel.json`. The scripts only have Wrangler commands. **Deploy to Vercel instead.**
+
+**Why:**
+- Same Neon database as Pounce app — one connection string, one dashboard
+- Same deployment pipeline — `git push` → Vercel auto-deploys
+- Same environment variable management
+- Same domain — no CORS issues (license API at `pouncefirst.com/api/license/*` or a subdomain, but same Vercel team)
+- Ty's already paying for Vercel — no new account, no new billing
+- The `vercel.json` is already there — you wrote it
+
+**Action:** Remove `wrangler.toml` and `wrangler` dev dependency. Update `package.json` scripts to use Vercel CLI instead. Add the license server as a separate Vercel project (`pounce-license`) under `hamburgers1s-projects`.
+
+Cloudflare Workers is the "more enterprise" choice, but Pounce has zero customers right now. When it has thousands, we can split it out. For now, one platform, one bill, one dashboard.
+
+### 2. Signup Ordering: User → License → Site → Form
+
+At signup time, the user doesn't have a site yet. The correct creation order is:
+1. Create user (`users` table)
+2. Call license server → get `PC-XXXX-XXXX-XXXX` key
+3. Create site with name + license key reference (`sites` table)
+4. Create default Pounce form for that site
+5. Send welcome email with key
+
+Don't create an orphaned site without a user, and don't call the license server before the user exists (or you can't associate the key with an email).
+
+### 3. Same Neon Database, Different Project
+
+The license server should use the same Neon instance but a **separate project** (or at minimum a separate database). Don't share the `neondb` database with the Pounce app — the license server needs its own schema namespace. Two options:
+- **Option A (recommended):** Separate Neon project, separate connection string. Cleanest isolation.
+- **Option B:** Same Neon project, separate database (`pounce_license` vs `neondb`). Cheaper, still isolated.
+
+Both work. Pick one and go.
 
 ---
 
@@ -22,7 +61,7 @@ The license server is already built on `bolt/license-server` in the `trueleads-l
 
 ```
 pouncefirst.com/signup           → Pip builds UI
-  POST /api/auth/signup          → Create user + call license server API to generate free key
+  POST /api/auth/signup          → Create user → call license API → create site → create form → send email
   Redirect to /admin/setup?key=PC-XXXX-XXXX-XXXX
 
 pouncefirst.com/pricing           → Pip builds UI
@@ -30,7 +69,7 @@ pouncefirst.com/pricing           → Pip builds UI
   Redirect to Stripe → pay → webhook
 
 pouncefirst.com/api/stripe/webhook → Handle checkout.session.completed
-  → Call license server API to upgrade tier
+  → Call license API to upgrade tier
   → Send confirmation email via Resend
 
 pouncefirst.com/api/f/{slug}      → Lead submission (existing)
@@ -38,7 +77,7 @@ pouncefirst.com/api/f/{slug}      → Lead submission (existing)
   → IF free tier AND count >= 500: store lead + email, skip AI reply
   → IF paid OR under 500: store lead + email + AI auto-reply
 
-license.pouncefirst.com (Cloudflare Workers, already built)
+license.pouncefirst.com (Vercel, separate project)
   POST /license/activate          → Activate a license key for a domain
   POST /license/verify            → Verify license is valid for a domain
   POST /license/deactivate        → Deactivate a license for a domain
@@ -144,22 +183,20 @@ Request body:
 }
 ```
 
-Logic:
+**⚠️ Creation order (important — don't skip steps):**
 1. Validate email + password (8+ chars)
 2. Check if email exists → 409 "Account already exists"
 3. Hash password with bcrypt
 4. Create user in `users` table (role: `owner`)
-5. Call `POST https://license.pouncefirst.com/admin/license/generate` with:
-   ```json
-   { "tier": "free", "email": "user@example.com" }
-   ```
-   (Include `Authorization: Bearer <LICENSE_SERVER_API_KEY>` header)
-6. Store the returned license key hash in the `sites` table
-7. Create default Pounce form for the site
+5. Call `POST https://license.pouncefirst.com/admin/license/generate` with `{ "tier": "free", "email": "user@example.com" }` (include `Authorization: Bearer <LICENSE_SERVER_API_KEY>`)
+6. Create site in `sites` table with name + license key reference
+7. Create default Pounce form for that site
 8. Send welcome email via Resend with license key
-9. Return `{ success: true, key: "PC-XXXX-XXXX-XXXX", redirectUrl: "/admin/setup?key=PC-XXXX-XXXX-XXXX" }`
+9. Return `{ "success": true, "key": "PC-XXXX-XXXX-XXXX", "redirectUrl": "/admin/setup?key=PC-XXXX-XXXX-XXXX" }`
 
-**Important:** The raw key is returned ONCE in the signup response and in the email. It's never shown again.
+Do NOT call the license server before creating the user (you need the email). Do NOT create a site before getting the license key (you need the key hash to reference it).
+
+**Important:** The raw key is returned ONCE in the signup response and in the email. It's never shown again. The user must copy it.
 
 ### B10: Free Tier — Lead Rate Limiting (~1.5h)
 

@@ -38,7 +38,35 @@ try {
 
     {form && (
       <>
-        <!-- Embed Code Card -->
+        <!-- Hidden data for client script -->
+        <script type="application/json" id="form-data">{JSON.stringify(form)}</script>
+
+        <!-- Analytics Section -->
+        <div id="analytics-section" class="mb-6">
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+              <p class="text-xs text-gray-500 mb-1">Views</p>
+              <p id="stat-views" class="text-2xl font-bold font-heading text-charcoal">-</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+              <p class="text-xs text-gray-500 mb-1">Submissions</p>
+              <p id="stat-submissions" class="text-2xl font-bold font-heading text-charcoal">-</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+              <p class="text-xs text-gray-500 mb-1">Conversion Rate</p>
+              <p id="stat-rate" class="text-2xl font-bold font-heading text-charcoal">-</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 class="text-lg font-bold font-heading text-charcoal mb-4">Recent Submissions</h2>
+            <div id="submissions-table" class="overflow-x-auto">
+              <p class="text-sm text-gray-400 text-center py-8">Loading...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Embed Code Card with Modal Trigger -->
         <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <div class="flex items-center justify-between mb-4">
             <div>
@@ -59,9 +87,48 @@ try {
               id="embed-code"
               class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600"
             />
-            <button id="copy-embed" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Copy</button>
+            <button id="open-embed-modal" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Get Embed Code</button>
           </div>
           <p class="text-xs text-gray-400 mt-2">Public URL: <a href={`/f/${form.slug}`} class="text-pounce-orange hover:underline">https://www.pouncefirst.com/f/{form.slug}</a></p>
+        </div>
+
+        <!-- Embed Modal -->
+        <div id="embed-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+          <div class="bg-white rounded-xl shadow-lg border border-gray-200 w-full max-w-lg mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold font-heading text-charcoal">Embed Code</h2>
+              <button id="close-embed-modal" class="text-gray-400 hover:text-charcoal">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">Paste this script tag on any page to embed the form.</p>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+              <code class="text-sm font-mono text-gray-700 break-all" id="embed-modal-code">&lt;script src="https://www.pouncefirst.com/api/f/{form.slug}/embed.js"&gt;&lt;/script&gt;</code>
+            </div>
+            <div class="flex items-center gap-3">
+              <button id="copy-embed-modal" class="px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Copy to Clipboard</button>
+              <a href={`/f/${form.slug}`} target="_blank" class="text-sm text-pounce-orange hover:underline">Preview Form &rarr;</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Iframe Preview -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold font-heading text-charcoal">Live Preview</h2>
+              <p class="text-sm text-gray-500">This is how the form looks to visitors</p>
+            </div>
+            <a href={`/f/${form.slug}`} target="_blank" class="text-sm text-pounce-orange hover:underline">Open in new tab &rarr;</a>
+          </div>
+          <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+            <iframe
+              src={`/f/${form.slug}`}
+              class="w-full h-[400px]"
+              title={`Preview of ${form.name}`}
+              sandbox="allow-forms allow-scripts"
+            />
+          </div>
         </div>
 
         <!-- Edit Form (same structure as new, pre-filled) -->
@@ -151,9 +218,22 @@ try {
 </AdminLayout>
 </AdminPage>
 
-<script define:vars={{ initialForm: form }}>
-  // Same field builder logic as new.astro, initialized with form data
-  let fields = (initialForm?.fields || []).map((f, i) => ({
+<script>
+  const formDataEl = document.getElementById('form-data');
+  if (!formDataEl) return;
+  const initialForm = JSON.parse(formDataEl.textContent || '{}');
+
+  interface FormField {
+    id: string;
+    name: string;
+    type: string;
+    label: string;
+    required: boolean;
+    placeholder: string;
+    options?: string[];
+  }
+
+  let fields: FormField[] = (initialForm?.fields || []).map((f: any, i: number) => ({
     id: 'field_' + i + '_' + Math.random().toString(36).substring(2, 5),
     name: f.name,
     type: f.type,
@@ -163,12 +243,12 @@ try {
     options: f.options || undefined,
   }));
 
-  function generateId() {
+  function generateId(): string {
     return 'field_' + Math.random().toString(36).substring(2, 9);
   }
 
-  function addField(type) {
-    const field = {
+  function addField(type: string) {
+    const field: FormField = {
       id: generateId(),
       name: `field_${fields.length + 1}`,
       type,
@@ -188,32 +268,36 @@ try {
     render();
   }
 
-  function removeField(id) {
+  function removeField(id: string) {
     fields = fields.filter(f => f.id !== id);
     render();
   }
 
-  function updateField(id, key, value) {
+  function updateField(id: string, key: string, value: any) {
     const field = fields.find(f => f.id === id);
     if (field) {
-      field[key] = value;
+      (field as any)[key] = value;
       render();
     }
   }
 
-  function moveField(id, direction) {
+  function moveField(id: string, direction: string) {
     const idx = fields.findIndex(f => f.id === id);
     if (idx === -1) return;
     if (direction === 'up' && idx > 0) {
-      [fields[idx], fields[idx - 1]] = [fields[idx - 1], fields[idx]];
+      const a = fields[idx]!, b = fields[idx - 1]!;
+      fields[idx] = b;
+      fields[idx - 1] = a;
     } else if (direction === 'down' && idx < fields.length - 1) {
-      [fields[idx], fields[idx + 1]] = [fields[idx + 1], fields[idx]];
+      const a = fields[idx]!, b = fields[idx + 1]!;
+      fields[idx] = b;
+      fields[idx + 1] = a;
     }
     render();
   }
 
-  function renderFieldEditor(field) {
-    const optionsHtml = field.options ? field.options.map((opt, i) => `
+  function renderFieldEditor(field: FormField): string {
+    const optionsHtml = field.options ? field.options.map((opt: string, i: number) => `
       <div class="flex items-center gap-2">
         <input type="text" value="${opt}" data-field="${field.id}" data-opt-idx="${i}" class="option-input flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
         <button data-field="${field.id}" data-remove-opt="${i}" class="text-red-400 hover:text-red-600 text-xs">&times;</button>
@@ -258,7 +342,7 @@ try {
     `;
   }
 
-  function renderPreviewField(field) {
+  function renderPreviewField(field: FormField): string {
     const required = field.required ? ' *' : '';
     const commonClasses = 'w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange';
 
@@ -315,31 +399,35 @@ try {
       <button class="w-full py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium">Submit</button>
     `;
 
-    document.querySelectorAll('[data-field]').forEach(el => {
-      const fieldId = el.dataset.field;
-      const key = el.dataset.key;
+    document.querySelectorAll('[data-field]').forEach((el) => {
+      const input = el as HTMLInputElement;
+      const fieldId = input.dataset.field;
+      const key = input.dataset.key;
       if (key === 'required') {
-        el.addEventListener('change', (e) => {
-          updateField(fieldId, 'required', e.target.checked);
+        input.addEventListener('change', (e) => {
+          updateField(fieldId!, 'required', (e.target as HTMLInputElement).checked);
         });
       } else {
-        el.addEventListener('input', (e) => {
-          updateField(fieldId, key, e.target.value);
+        input.addEventListener('input', (e) => {
+          updateField(fieldId!, key!, (e.target as HTMLInputElement).value);
         });
       }
     });
 
-    document.querySelectorAll('[data-remove]').forEach(el => {
-      el.addEventListener('click', () => removeField(el.dataset.remove));
+    document.querySelectorAll('[data-remove]').forEach((el) => {
+      const btn = el as HTMLElement;
+      btn.addEventListener('click', () => removeField(btn.dataset.remove!));
     });
 
-    document.querySelectorAll('[data-move]').forEach(el => {
-      el.addEventListener('click', () => moveField(el.dataset.move, el.dataset.dir));
+    document.querySelectorAll('[data-move]').forEach((el) => {
+      const btn = el as HTMLElement;
+      btn.addEventListener('click', () => moveField(btn.dataset.move!, btn.dataset.dir!));
     });
 
-    document.querySelectorAll('[data-add-opt]').forEach(el => {
-      el.addEventListener('click', () => {
-        const field = fields.find(f => f.id === el.dataset.addOpt);
+    document.querySelectorAll('[data-add-opt]').forEach((el) => {
+      const btn = el as HTMLElement;
+      btn.addEventListener('click', () => {
+        const field = fields.find((f: any) => f.id === btn.dataset.addOpt);
         if (field && field.options) {
           field.options.push(`Option ${field.options.length + 1}`);
           render();
@@ -347,21 +435,23 @@ try {
       });
     });
 
-    document.querySelectorAll('[data-remove-opt]').forEach(el => {
-      el.addEventListener('click', () => {
-        const field = fields.find(f => f.id === el.dataset.field);
+    document.querySelectorAll('[data-remove-opt]').forEach((el) => {
+      const btn = el as HTMLElement;
+      btn.addEventListener('click', () => {
+        const field = fields.find((f: any) => f.id === btn.dataset.field);
         if (field && field.options) {
-          field.options.splice(parseInt(el.dataset.removeOpt), 1);
+          field.options.splice(parseInt(btn.dataset.removeOpt!, 10), 1);
           render();
         }
       });
     });
 
-    document.querySelectorAll('.option-input').forEach(el => {
-      el.addEventListener('input', () => {
-        const field = fields.find(f => f.id === el.dataset.field);
+    document.querySelectorAll('.option-input').forEach((el) => {
+      const input = el as HTMLInputElement;
+      input.addEventListener('input', () => {
+        const field = fields.find((f: any) => f.id === input.dataset.field);
         if (field && field.options) {
-          field.options[parseInt(el.dataset.optIdx)] = el.value;
+          field.options[parseInt(input.dataset.optIdx!, 10)] = input.value;
           render();
         }
       });
@@ -379,9 +469,89 @@ try {
   document.getElementById('add-select')?.addEventListener('click', () => addField('select'));
   document.getElementById('add-checkbox')?.addEventListener('click', () => addField('checkbox'));
 
-  // Copy embed
+  // Analytics: fetch stats
+  async function loadAnalytics() {
+    try {
+      const res = await fetch(`/api/admin/forms/${initialForm.id}/stats`);
+      const data = await res.json();
+      if (res.ok && data.stats) {
+        const viewsEl = document.getElementById('stat-views');
+        const subsEl = document.getElementById('stat-submissions');
+        const rateEl = document.getElementById('stat-rate');
+        const tableEl = document.getElementById('submissions-table');
+
+        if (viewsEl) viewsEl.textContent = String(data.stats.views || 0);
+        if (subsEl) subsEl.textContent = String(data.stats.submissions || 0);
+        const rate = data.stats.views > 0 ? Math.round((data.stats.submissions / data.stats.views) * 100) : 0;
+        if (rateEl) rateEl.textContent = rate + '%';
+
+        if (tableEl) {
+          const submissions = data.recentSubmissions || [];
+          if (submissions.length === 0) {
+            tableEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No submissions yet</p>';
+          } else {
+            tableEl.innerHTML = '<table class="w-full text-sm"><thead><tr class="border-b border-gray-100"><th class="text-left py-2 px-3 text-gray-500 font-medium">Date</th><th class="text-left py-2 px-3 text-gray-500 font-medium">Data</th></tr></thead><tbody class="divide-y divide-gray-50">' +
+              submissions.map((s: any) => `
+                <tr class="hover:bg-gray-50">
+                  <td class="py-2 px-3 text-gray-600 whitespace-nowrap">${new Date(s.createdAt).toLocaleDateString()}</td>
+                  <td class="py-2 px-3 text-gray-600 truncate max-w-[300px]">${JSON.stringify(s.data || {})}</td>
+                </tr>
+              `).join('') +
+              '</tbody></table>';
+          }
+        }
+      }
+    } catch (err) {
+      // Silently fail analytics
+    }
+  }
+  loadAnalytics();
+
+  // Embed modal handlers
+  const embedModal = document.getElementById('embed-modal');
+  const openEmbedModalBtn = document.getElementById('open-embed-modal');
+  const closeEmbedModalBtn = document.getElementById('close-embed-modal');
+  const copyEmbedModalBtn = document.getElementById('copy-embed-modal');
+
+  if (openEmbedModalBtn && embedModal) {
+    openEmbedModalBtn.addEventListener('click', () => {
+      embedModal.classList.remove('hidden');
+      embedModal.classList.add('flex');
+    });
+  }
+
+  if (closeEmbedModalBtn && embedModal) {
+    closeEmbedModalBtn.addEventListener('click', () => {
+      embedModal.classList.add('hidden');
+      embedModal.classList.remove('flex');
+    });
+  }
+
+  if (embedModal) {
+    embedModal.addEventListener('click', (e) => {
+      if (e.target === embedModal) {
+        embedModal.classList.add('hidden');
+        embedModal.classList.remove('flex');
+      }
+    });
+  }
+
+  if (copyEmbedModalBtn) {
+    copyEmbedModalBtn.addEventListener('click', () => {
+      const codeEl = document.getElementById('embed-modal-code');
+      if (codeEl) {
+        const text = codeEl.textContent || '';
+        navigator.clipboard.writeText(text).then(() => {
+          copyEmbedModalBtn.textContent = 'Copied!';
+          setTimeout(() => copyEmbedModalBtn.textContent = 'Copy to Clipboard', 2000);
+        });
+      }
+    });
+  }
+
+  // Copy embed inline
   document.getElementById('copy-embed')?.addEventListener('click', () => {
-    const input = document.getElementById('embed-code');
+    const input = document.getElementById('embed-code') as HTMLInputElement | null;
     if (input) {
       input.select();
       document.execCommand('copy');
@@ -389,91 +559,112 @@ try {
   });
 
   // Save
-  document.getElementById('save-btn')?.addEventListener('click', async () => {
-    const name = document.getElementById('form-name')?.value;
-    const submitMessage = document.getElementById('submit-message')?.value;
-    const redirectUrl = document.getElementById('redirect-url')?.value;
-    const active = document.getElementById('form-active')?.checked;
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement | null;
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const nameEl = document.getElementById('form-name') as HTMLInputElement | null;
+      const submitMessageEl = document.getElementById('submit-message') as HTMLInputElement | null;
+      const redirectUrlEl = document.getElementById('redirect-url') as HTMLInputElement | null;
+      const activeEl = document.getElementById('form-active') as HTMLInputElement | null;
 
-    const btn = document.getElementById('save-btn');
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
+      const name = nameEl ? nameEl.value : '';
+      const submitMessage = submitMessageEl ? submitMessageEl.value : '';
+      const redirectUrl = redirectUrlEl ? redirectUrlEl.value : '';
+      const active = activeEl ? activeEl.checked : false;
 
-    try {
-      const res = await fetch(`/api/admin/forms/${initialForm.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          fields: fields.map(f => ({
-            name: f.name,
-            type: f.type,
-            label: f.label,
-            required: f.required,
-            placeholder: f.placeholder,
-            options: f.options,
-          })),
-          submitMessage,
-          redirectUrl,
-          active,
-        }),
-      });
-      const data = await res.json();
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
 
-      if (res.ok) {
-        window.location.reload();
-      } else {
+      try {
+        const res = await fetch(`/api/admin/forms/${initialForm.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            fields: fields.map(f => ({
+              name: f.name,
+              type: f.type,
+              label: f.label,
+              required: f.required,
+              placeholder: f.placeholder,
+              options: f.options,
+            })),
+            submitMessage,
+            redirectUrl,
+            active,
+          }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const errorBanner = document.getElementById('error-banner');
+          if (errorBanner) {
+            const errP = errorBanner.querySelector('p');
+            if (errP) errP.textContent = data.error || 'Failed to save form';
+            errorBanner.classList.remove('hidden');
+          }
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Changes';
+        }
+      } catch (err) {
         const errorBanner = document.getElementById('error-banner');
         if (errorBanner) {
-          errorBanner.querySelector('p').textContent = data.error || 'Failed to save form';
+          const errP = errorBanner.querySelector('p');
+          if (errP) errP.textContent = 'Network error. Please try again.';
           errorBanner.classList.remove('hidden');
         }
-        btn.disabled = false;
-        btn.textContent = 'Save Changes';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
       }
-    } catch (err) {
-      const errorBanner = document.getElementById('error-banner');
-      if (errorBanner) {
-        errorBanner.querySelector('p').textContent = 'Network error. Please try again.';
-        errorBanner.classList.remove('hidden');
-      }
-      btn.disabled = false;
-      btn.textContent = 'Save Changes';
-    }
-  });
+    });
+  }
 
   // Delete
-  document.getElementById('delete-form-btn')?.addEventListener('click', () => {
-    const dialog = document.getElementById('delete-dialog');
-    dialog.classList.remove('hidden');
-    dialog.classList.add('flex');
-  });
-
-  document.getElementById('delete-cancel')?.addEventListener('click', () => {
-    const dialog = document.getElementById('delete-dialog');
-    dialog.classList.add('hidden');
-    dialog.classList.remove('flex');
-  });
-
-  document.getElementById('delete-confirm')?.addEventListener('click', async () => {
-    const btn = document.getElementById('delete-confirm');
-    btn.disabled = true;
-    btn.textContent = 'Deleting...';
-
-    try {
-      const res = await fetch(`/api/admin/forms/${initialForm.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        window.location.href = '/admin/forms';
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete form');
-        btn.disabled = false;
-        btn.textContent = 'Delete';
+  const deleteFormBtn = document.getElementById('delete-form-btn') as HTMLElement | null;
+  if (deleteFormBtn) {
+    deleteFormBtn.addEventListener('click', () => {
+      const dialog = document.getElementById('delete-dialog') as HTMLElement | null;
+      if (dialog) {
+        dialog.classList.remove('hidden');
+        dialog.classList.add('flex');
       }
-    } catch (err) {
-      alert('Network error');
-      btn.disabled = false;
-      btn.textContent = 'Delete';
-    }
-  });
+    });
+  }
+
+  const deleteCancelBtn = document.getElementById('delete-cancel') as HTMLElement | null;
+  if (deleteCancelBtn) {
+    deleteCancelBtn.addEventListener('click', () => {
+      const dialog = document.getElementById('delete-dialog') as HTMLElement | null;
+      if (dialog) {
+        dialog.classList.add('hidden');
+        dialog.classList.remove('flex');
+      }
+    });
+  }
+
+  const deleteConfirmBtn = document.getElementById('delete-confirm') as HTMLButtonElement | null;
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', async () => {
+      deleteConfirmBtn.disabled = true;
+      deleteConfirmBtn.textContent = 'Deleting...';
+
+      try {
+        const res = await fetch(`/api/admin/forms/${initialForm.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          window.location.href = '/admin/forms';
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Failed to delete form');
+          deleteConfirmBtn.disabled = false;
+          deleteConfirmBtn.textContent = 'Delete';
+        }
+      } catch (err) {
+        alert('Network error');
+        deleteConfirmBtn.disabled = false;
+        deleteConfirmBtn.textContent = 'Delete';
+      }
+    });
+  }
 </script>

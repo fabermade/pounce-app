@@ -19,10 +19,11 @@ Right now `pouncefirst.com` redirects straight to `/admin`. There is no public-f
 ```
 pouncefirst.com/              → Marketing homepage
 pouncefirst.com/pricing       → Pricing tiers + Stripe checkout
+pouncefirst.com/signup         → Free tier self-signup (no credit card)
 pouncefirst.com/docs/...      → Documentation (setup, deploy, API)
 pouncefirst.com/support       → Support (Pounce-powered: form → lead → AI reply)
 pouncefirst.com/contact       → Contact (Pounce-powered: form → lead → AI reply)
-pouncefirst.com/blog/...      → Blog posts (optional, Phase 2)
+pouncefirst.com/blog/...      → Blog posts
 pouncefirst.com/admin/...     → Existing admin dashboard
 pouncefirst.com/api/...       → Existing API routes
 pouncefirst.com/f/...         → Existing public forms
@@ -57,9 +58,39 @@ All pages share the same Astro project. Public pages use a **PublicLayout** (hea
 
 | Tier | Sites | Monthly | Annual |
 |------|-------|---------|--------|
-| Starter | 1 site | $10/mo | $100/yr |
-| Pro | 5 sites | $40/mo | $175/yr |
-| Enterprise | Unlimited | Custom | Custom |
+| Free | 1 site | $0 | — | 500 leads/mo |
+| Starter | 1 site | $10/mo | $100/yr | Unlimited |
+| Pro | 5 sites | $40/mo | $175/yr | Unlimited |
+| Enterprise | Unlimited | Custom | Custom | Unlimited |
+
+### Free Tier — Soft Wall Behavior
+
+**Decision:** Option B — soft wall with upsell.
+
+When a free tier site hits 500 leads/month:
+- ✅ Lead 501+ **still gets stored** in the database
+- ✅ Lead 501+ **still gets forwarded to the business email**
+- ✅ The business owner **still sees every lead** in their dashboard
+- ❌ **AI auto-reply stops** for leads beyond the 500 limit
+- 📣 **Banner in admin:** "You've exceeded your free tier (523/500 leads this month). Upgrade to keep AI responding automatically."
+- 📣 **Lead confirmation page** shows normal "We'll get back to you" (no indication of limits)
+
+**The value upgrade:** Free = "see every lead, respond manually." Paid = "never miss a lead, AI handles it for you."
+
+Leads counter resets on the 1st of each month.
+
+**Self-signup flow:**
+1. User visits pouncefirst.com → clicks "Get Started Free"
+2. Enters email + business name → auto-generates free license key
+3. Redirected to setup wizard → install Pounce
+4. No credit card required
+5. Upgrade anytime from Settings → Billing
+
+**API changes:**
+- `/api/f/{slug}` — before creating a lead, check site's `leadsThisMonth` vs tier limit
+- If under limit: AI auto-reply proceeds normally
+- If over limit: lead stored + emailed, but `aiReplyEnabled: false` in response
+- Admin dashboard: show usage bar ("347/500 leads this month") with upgrade CTA when >80%
 
 **Flow:**
 1. User clicks "Get Started" on a tier
@@ -153,6 +184,7 @@ The support page IS a Pounce form. This is the proof point.
 | `DocSidebar.astro` | `/docs/*` — navigation sidebar |
 | `DocContent.astro` | `/docs/*` — markdown rendering, code blocks |
 | `FAQAccordion.astro` | `/support` — common questions |
+| `UsageBar.astro` | Admin dashboard — "347/500 leads this month" with upgrade CTA |
 | `FeatureCard.astro` | `/` — icon + title + description |
 | `StepCard.astro` | `/` — numbered step illustration |
 
@@ -202,13 +234,15 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 | A4. Docs layout (sidebar, content, code blocks) | 2 | A1 |
 | A5. Support page (FAQ + Pounce form embed) | 1 | A1 |
 | A6. Contact page (Pounce form embed) | 0.5 | A1 |
-| A7. Mobile responsive pass | 0.5 | A2-A6 |
+| A7. Signup page (email + business name → free tier) | 1.5 | A1 |
+| A8. Usage bar component (admin dashboard) | 1 | A7 |
+| A9. Mobile responsive pass | 0.5 | A2-A8 |
 
-### Phase B — Bolt (Stripe + Purchase Pipeline) — ~8h
+### Phase B — Bolt (Stripe + Purchase Pipeline + Free Tier) — ~13h
 
 | Task | Hours | Depends On |
 |------|-------|------------|
-| B1. Stripe products/prices setup | 0.5 | Ty provides Stripe keys |
+| B1. Stripe products/prices setup (4 tiers: free, starter, pro, enterprise) | 0.5 | Ty provides Stripe keys |
 | B2. `/api/stripe/checkout` route | 1.5 | B1 |
 | B3. `/api/stripe/webhook` handler | 2 | B1 |
 | B4. License key generation on payment | 1 | B3 |
@@ -216,6 +250,10 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 | B6. `/api/stripe/portal` (manage billing) | 1 | B1 |
 | B7. Post-checkout success page | 1 | B2 |
 | B8. Doc content (API, inbox, booking, license) | 1 | — |
+| B9. Free tier: self-signup flow (`/signup`) | 2 | — |
+| B10. Free tier: lead rate limiting (`/api/f/*` check monthly count) | 1.5 | B9 |
+| B11. Free tier: AI auto-reply bypass when over limit | 0.5 | B10 |
+| B12. Free tier: admin usage banner + upgrade CTA | 0.5 | B10 |
 
 ### Phase C — Patch (Infra) — ~2h
 
@@ -226,7 +264,7 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 | C3. Self-hosting + troubleshooting docs | 1 | A4 |
 | C4. Deploy + verify all public pages 200 | 0.5 | A+B |
 
-### Total: ~22h (Pip 12h, Bolt 8h, Patch 2h)
+### Total: ~30h (Pip 12h, Bolt 13h, Patch 2h)
 
 ---
 
@@ -234,8 +272,8 @@ For now, Pip uses gray placeholder boxes with labels. Ty replaces with real capt
 
 1. ✅ **Stripe account** — Ty has one
 2. ✅ **Enterprise pricing** — "Contact us" → `/contact` form
-3. ✅ **Free trial** — 7 days, then pay
-4. ✅ **Blog** — Include now
+3. ✅ **Free tier** — $0, 1 site, 500 leads/month. Soft wall: leads still stored and emailed, but AI auto-reply stops. Upsell banner in admin. Self-signup, no credit card.
+4. ✅ **Blog** — Included now
 5. ✅ **Domain** — Keep everything on `pouncefirst.com`. License server API routes under `/api/license/*`. No subdomain split. Simpler for Stripe webhooks, SSL, and CORS. License server code deploys as a separate Vercel project but can be mounted as API routes later.
 6. ✅ **Logo/branding** — Reuse existing Pounce brand specs from the admin app. Create a reusable SVG logo component. Designer refines later.
 

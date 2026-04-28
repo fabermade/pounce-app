@@ -393,9 +393,21 @@ const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
           if (res.ok) {
             window.location.href = '/admin';
           } else {
-            const err = await res.json().catch(() => ({ error: 'Setup failed' }));
-            errorMsg.textContent = err.error || 'Setup failed. Please try again.';
-            errorBanner.classList.remove('hidden');
+            let errorMsg = 'Setup failed. Please try again.';
+            try {
+              const err = await res.json();
+              if (typeof err.error === 'string') {
+                errorMsg = err.error;
+              } else if (err.error?.fieldErrors) {
+                // Zod validation errors — show first field error
+                const fields = Object.values(err.error.fieldErrors ?? {});
+                if (fields.length > 0) {
+                  errorMsg = fields.flat().join(' ');
+                }
+              }
+            } catch { /* use default */ }
+            document.getElementById('setup-error-msg')!.textContent = errorMsg;
+            document.getElementById('setup-error')!.classList.remove('hidden');
           }
         } catch {
           errorMsg.textContent = 'Network error. Please try again.';

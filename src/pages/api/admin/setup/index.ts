@@ -33,7 +33,7 @@ const setupSchema = z.object({
   // Business info
   business: z.object({
     name: z.string().min(1, 'Business name is required'),
-    tagline: z.string().min(1, 'Tagline is required'),
+    tagline: z.string().optional().default(''),
     website: z.string().url('Must be a valid URL').optional().or(z.literal('')),
     description: z.string().optional(),
   }),
@@ -133,11 +133,12 @@ export const POST: APIRoute = async ({ request }) => {
       },
       providers: {
         llm: data.providers.llm,
-        // Store env:KEY references — the actual key value goes in .env
-        llmApiKey: `env:LLM_API_KEY`,
+        // Store the actual API key — resolveEnvKey handles env: prefixed values at runtime,
+        // but for initial setup the user provides the raw key directly.
+        llmApiKey: data.providers.llmApiKey,
         llmModel: data.providers.llmModel ?? '',
         email: data.providers.email,
-        emailApiKey: `env:EMAIL_API_KEY`,
+        emailApiKey: data.providers.emailApiKey,
         fromEmail: data.providers.fromEmail,
         inbox: '',
       },

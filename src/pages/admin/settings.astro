@@ -209,8 +209,15 @@ const emailKeySet = !!(providers.emailApiKey);
       const formData = new FormData(formEl);
 
       for (const [key, value] of formData.entries()) {
-        // Convert checkboxes to booleans
-        const boolValue = value === 'on' ? true : value;
+        // Convert string booleans to actual booleans
+        let parsedValue: unknown;
+        if (value === 'on' || value === 'true') {
+          parsedValue = true;
+        } else if (value === 'false') {
+          parsedValue = false;
+        } else {
+          parsedValue = value;
+        }
 
         // Parse bracket notation: services[0].name → { services: [{ name: val }] }
         const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
@@ -222,7 +229,7 @@ const emailKeySet = !!(providers.emailApiKey);
           // Compact sparse arrays
           while (arr.length <= index) arr.push({});
           if (!arr[index]) arr[index] = {};
-          arr[index][field as string] = boolValue;
+          arr[index][field as string] = parsedValue;
           continue;
         }
 
@@ -234,12 +241,12 @@ const emailKeySet = !!(providers.emailApiKey);
             if (!current[parts[i]!]) current[parts[i]!] = {};
             current = current[parts[i]!] as Record<string, unknown>;
           }
-          current[parts[parts.length - 1]!] = boolValue;
+          current[parts[parts.length - 1]!] = parsedValue;
           continue;
         }
 
         // Simple key
-        payload[key] = boolValue;
+        payload[key] = parsedValue;
       }
 
       return payload;

@@ -23,6 +23,7 @@ export class ResendProvider implements EmailProvider {
       to: params.to,
       subject: params.subject,
       html: params.html,
+      text: params.text,
       replyTo: params.replyTo,
     });
 

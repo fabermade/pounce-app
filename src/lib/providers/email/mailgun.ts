@@ -33,6 +33,7 @@ export class MailgunProvider implements EmailProvider {
           to: params.to,
           subject: params.subject,
           html: params.html,
+          text: params.text,
           ...(params.replyTo ? { 'h:Reply-To': params.replyTo } : {}),
         }),
       },

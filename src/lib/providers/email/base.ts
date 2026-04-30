@@ -10,6 +10,7 @@ export interface EmailSendParams {
   from: string;
   subject: string;
   html: string;
+  text: string;
   replyTo?: string;
 }
 

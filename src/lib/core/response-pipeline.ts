@@ -203,6 +203,11 @@ function buildUnsubscribeHtml(leadEmail: string, baseUrl: string): string {
   `;
 }
 
+function buildUnsubscribeText(leadEmail: string, baseUrl: string): string {
+  const encodedEmail = encodeURIComponent(leadEmail);
+  return `\n---\nYou're receiving this because you contacted us. Unsubscribe: ${baseUrl}/api/unsubscribe?email=${encodedEmail}`;
+}
+
 // ─── Main Pipeline ─────────────────────────────────────────────────
 
 /**
@@ -314,6 +319,10 @@ export async function runResponsePipeline(
     context.leadEmail,
     config.unsubscribeBase,
   );
+  const unsubscribeText = buildUnsubscribeText(
+    context.leadEmail,
+    config.unsubscribeBase,
+  );
 
   // 12. Send email
   let emailMessageId: string | undefined;
@@ -324,6 +333,7 @@ export async function runResponsePipeline(
       from: config.email.fromEmail,
       subject: `Re: Your inquiry to ${config.business.business.name || 'us'}`,
       html: `<div style="font-family: sans-serif; max-width: 600px;">${finalResponse.replace(/\n/g, '<br>')}</div>${unsubscribeHtml}`,
+      text: `${finalResponse}\n${unsubscribeText}`,
       replyTo: config.business.escalation.notifyEmail || undefined,
     });
     emailMessageId = result.messageId;

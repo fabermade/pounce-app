@@ -17,8 +17,9 @@ const { faq = [] } = Astro.props;
     </button>
   </div>
   <div id="faq-list" class="space-y-3">
+    <input type="hidden" name="faq" value="__empty_array__" data-empty-marker />
     {faq.length === 0 && (
-      <p class="text-sm text-gray-400">No FAQ configured.</p>
+      <p class="text-sm text-gray-400" data-empty-text>No FAQ configured.</p>
     )}
     {faq.map((item, i) => (
       <div class="faq-item p-3 border border-gray-200 rounded-lg" data-index={i}>
@@ -67,7 +68,7 @@ const { faq = [] } = Astro.props;
       <textarea name="faq[${count}].answer" rows="2" placeholder="Answer" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"></textarea>
     `;
     faqList?.appendChild(div);
-    const noFaq = faqList?.querySelector('p.text-gray-400');
+    const noFaq = faqList?.querySelector('[data-empty-text]');
     if (noFaq) noFaq.remove();
   });
 
@@ -76,7 +77,14 @@ const { faq = [] } = Astro.props;
     if (btn) {
       btn.closest('.faq-item')?.remove();
       if (faqList.querySelectorAll('.faq-item').length === 0) {
-        faqList.innerHTML = '<p class="text-sm text-gray-400">No FAQ configured.</p>';
+        const emptyText = faqList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = 'No FAQ configured.';
+          faqList.appendChild(p);
+        }
       }
     }
   });

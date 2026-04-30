@@ -4,7 +4,6 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import KnowledgeSources from '../../components/admin/settings/KnowledgeSources.astro';
 import FaqSection from '../../components/admin/settings/FaqSection.astro';
 import BookingSection from '../../components/admin/settings/BookingSection.astro';
-import BookingConfig from '../../components/admin/settings/BookingConfig.astro';
 import AgentMode from '../../components/admin/settings/AgentMode.astro';
 import IntegrationsSection from '../../components/admin/settings/IntegrationsSection.astro';
 import ServicesSection from '../../components/admin/settings/ServicesSection.astro';
@@ -148,8 +147,9 @@ const emailKeySet = !!(providers.emailApiKey);
           <!-- Booking -->
           <BookingSection
             url={booking.url || ''}
-            ctaText={booking.ctaText || ''}
+            ctaText={booking.ctaText || booking.cta || ''}
             timing={booking.timing || 'after_first_exchange'}
+            provider={providers.booking || booking.provider || ''}
           />
 
           <!-- Integrations -->
@@ -209,40 +209,128 @@ const emailKeySet = !!(providers.emailApiKey);
       const formData = new FormData(formEl);
 
       for (const [key, value] of formData.entries()) {
-        // Convert checkboxes to booleans
-        const boolValue = value === 'on' ? true : value;
+        // Convert string booleans to actual booleans, handle empty array sentinel
+        let parsedValue: unknown;
+        if (value === 'on' || value === 'true') {
+          parsedValue = true;
+        } else if (value === 'false') {
+          parsedValue = false;
+        } else if (value === '__empty_array__') {
+          parsedValue = '__empty_array__';
+        } else {
+          parsedValue = value;
+        }
 
-        // Parse bracket notation: services[0].name → { services: [{ name: val }] }
-        const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
-        if (match) {
-          const [, arrName, indexStr, field] = match as [string, string, string, string];
+        // Pattern 1: dot + bracket with field: knowledge.links[0].url → deep nested array of objects
+        // e.g. "knowledge.links[0].url" → { knowledge: { links: [{ url: val }] } }
+        const deepArrObjMatch = key.match(/^(.+)\.(\w+)\[(\d+)\]\.(\w+)$/);
+        if (deepArrObjMatch) {
+          const [, prefix, arrName, indexStr, field] = deepArrObjMatch as [string, string, string, string, string];
+          const index = parseInt(indexStr, 10);
+          // Navigate/create nested path
+          let current: Record<string, unknown> = payload;
+          const parts = prefix.split('.');
+          for (const part of parts) {
+            if (!(part in current)) current[part] = {};
+            current = current[part] as Record<string, unknown>;
+          }
+          if (!(arrName in current)) current[arrName] = [];
+          const arr = current[arrName] as Array<Record<string, unknown>>;
+          while (arr.length <= index) arr.push({});
+          arr[index][field] = parsedValue;
+          continue;
+        }
+
+        // Pattern 2: dot + bracket without field: escalation.triggerPhrases[0] → deep nested plain array
+        // e.g. "escalation.triggerPhrases[0]" → { escalation: { triggerPhrases: [val] } }
+        const deepArrMatch = key.match(/^(.+)\.(\w+)\[(\d+)\]$/);
+        if (deepArrMatch) {
+          const [, prefix, arrName, indexStr] = deepArrMatch as [string, string, string, string];
+          const index = parseInt(indexStr, 10);
+          let current: Record<string, unknown> = payload;
+          const parts = prefix.split('.');
+          for (const part of parts) {
+            if (!(part in current)) current[part] = {};
+            current = current[part] as Record<string, unknown>;
+          }
+          if (!(arrName in current)) current[arrName] = [];
+          const arr = current[arrName] as Array<unknown>;
+          while (arr.length <= index) arr.push(undefined);
+          arr[index] = parsedValue;
+          continue;
+        }
+
+        // Pattern 3: simple bracket with field: services[0].name → top-level array of objects
+        const bracketObjMatch = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
+        if (bracketObjMatch) {
+          const [, arrName, indexStr, field] = bracketObjMatch as [string, string, string, string];
           const index = parseInt(indexStr, 10);
           if (!payload[arrName]) payload[arrName] = [];
           const arr = payload[arrName] as Array<Record<string, unknown>>;
-          // Compact sparse arrays
           while (arr.length <= index) arr.push({});
           if (!arr[index]) arr[index] = {};
-          arr[index][field as string] = boolValue;
+          arr[index][field] = parsedValue;
           continue;
         }
 
-        // Parse dot notation: business.name → { business: { name: val } }
-        if (key.includes('.') && !key.includes('[')) {
+        // Pattern 4: simple bracket without field: faq[0] → top-level plain array
+        const bracketMatch = key.match(/^(\w+)\[(\d+)]$/);
+        if (bracketMatch) {
+          const [, arrName, indexStr] = bracketMatch as [string, string, string];
+          const index = parseInt(indexStr, 10);
+          if (!payload[arrName]) payload[arrName] = [];
+          const arr = payload[arrName] as Array<unknown>;
+          while (arr.length <= index) arr.push(undefined);
+          arr[index] = parsedValue;
+          continue;
+        }
+
+        // Pattern 5: dot notation: business.name → nested object
+        if (key.includes('.')) {
           const parts = key.split('.');
           let current: Record<string, unknown> = payload;
           for (let i = 0; i < parts.length - 1; i++) {
-            if (!current[parts[i]!]) current[parts[i]!] = {};
+            if (!(parts[i]! in current)) current[parts[i]!] = {};
             current = current[parts[i]!] as Record<string, unknown>;
           }
-          current[parts[parts.length - 1]!] = boolValue;
+          const lastKey = parts[parts.length - 1]!;
+          // Empty array sentinel → ensure this field is an empty array
+          if (parsedValue === '__empty_array__') {
+            if (!(lastKey in current)) current[lastKey] = [];
+            // If array items were already added, keep them — sentinel just ensures empty array
+          } else if (parsedValue === '' && Array.isArray(current[lastKey])) {
+            // Don't overwrite an existing array with empty string (e.g. from other form fields)
+          } else {
+            current[lastKey] = parsedValue;
+          }
           continue;
         }
 
-        // Simple key
-        payload[key] = boolValue;
+        // Pattern 6: simple key
+        // Empty array sentinel → replace with empty array
+        if (parsedValue === '__empty_array__') {
+          payload[key] = [];
+        } else {
+          payload[key] = parsedValue;
+        }
       }
 
-      return payload;
+      // Clean up: remove undefined entries from arrays (sparse arrays)
+      function cleanArrays(obj: unknown): unknown {
+        if (Array.isArray(obj)) {
+          return obj.filter(v => v !== undefined).map(cleanArrays);
+        }
+        if (obj && typeof obj === 'object') {
+          const result: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+            result[k] = cleanArrays(v);
+          }
+          return result;
+        }
+        return obj;
+      }
+
+      return cleanArrays(payload) as Record<string, unknown>;
     }
 
     form?.addEventListener('submit', async (e) => {

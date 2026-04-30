@@ -17,8 +17,9 @@ const { services = [] } = Astro.props;
     </button>
   </div>
   <div id="services-list" class="space-y-3">
+    <input type="hidden" name="services" value="__empty_array__" data-empty-marker />
     {services.length === 0 && (
-      <p class="text-sm text-gray-400">No services configured.</p>
+      <p class="text-sm text-gray-400" data-empty-text>No services configured.</p>
     )}
     {services.map((service, i) => (
       <div class="service-item p-3 border border-gray-200 rounded-lg" data-index={i}>
@@ -76,7 +77,7 @@ const { services = [] } = Astro.props;
       <input type="text" name="services[${count}].price" placeholder="Price" class="text-sm text-pounce-orange font-medium bg-transparent border-none focus:outline-none" />
     `;
     servicesList?.appendChild(div);
-    const noSvcs = servicesList?.querySelector('p.text-gray-400');
+    const noSvcs = servicesList?.querySelector('[data-empty-text]');
     if (noSvcs) noSvcs.remove();
   });
 
@@ -85,7 +86,14 @@ const { services = [] } = Astro.props;
     if (btn) {
       btn.closest('.service-item')?.remove();
       if (servicesList.querySelectorAll('.service-item').length === 0) {
-        servicesList.innerHTML = '<p class="text-sm text-gray-400">No services configured.</p>';
+        const emptyText = servicesList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = 'No services configured.';
+          servicesList.appendChild(p);
+        }
       }
     }
   });

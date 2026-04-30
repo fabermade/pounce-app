@@ -22,8 +22,10 @@ const { triggers = [], notifyEmail = '' } = Astro.props;
       </div>
       <p class="text-xs text-gray-400 mb-2">If a lead says any of these, the AI will escalate to a human.</p>
       <div id="triggers-list" class="flex flex-wrap gap-2">
+        {/* Hidden input ensures empty array is sent when all triggers are removed */}
+        <input type="hidden" name="escalation.triggerPhrases" value="__empty_array__" data-empty-marker />
         {triggers.length === 0 && (
-          <span class="text-sm text-gray-400">No triggers configured.</span>
+          <span class="text-sm text-gray-400" data-empty-text>No triggers configured.</span>
         )}
         {triggers.map((phrase, i) => (
           <span class="trigger-tag inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded text-xs font-medium" data-index={i}>
@@ -73,16 +75,21 @@ const { triggers = [], notifyEmail = '' } = Astro.props;
       </button>
     `;
     triggersList?.appendChild(span);
-    const noTriggers = triggersList?.querySelector('span.text-gray-400');
-    if (noTriggers) noTriggers.remove();
+    const emptyText = triggersList?.querySelector('[data-empty-text]');
+    if (emptyText) emptyText.remove();
   });
 
   triggersList?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest('[data-remove-trigger]');
     if (btn) {
       btn.closest('.trigger-tag')?.remove();
-      if (triggersList.querySelectorAll('.trigger-tag').length === 0) {
-        triggersList.innerHTML = '<span class="text-sm text-gray-400">No triggers configured.</span>';
+      const emptyText = triggersList.querySelector('[data-empty-text]');
+      if (triggersList.querySelectorAll('.trigger-tag').length === 0 && !emptyText) {
+        const span = document.createElement('span');
+        span.className = 'text-sm text-gray-400';
+        span.dataset.emptyText = '';
+        span.textContent = 'No triggers configured.';
+        triggersList.appendChild(span);
       }
     }
   });

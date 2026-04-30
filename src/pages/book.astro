@@ -145,28 +145,16 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
   )}
 
   {isCalcom && bookingUrl && (
-    <script is:inline src="https://app.cal.com/embed/embed.js" async></script>
     <script is:inline>
-      function initCal() {
-        if (!window.Cal) {
-          setTimeout(initCal, 100);
-          return;
-        }
-        var el = document.getElementById('calcom-embed');
-        var calLink = el ? el.getAttribute('data-cal-link') : '';
-        if (el && calLink) {
-          window.Cal('inline', {
-            elementOrSelector: el,
-            calLink: calLink
-          });
-        }
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initCal);
-      } else {
-        initCal();
-      }
+      // Cal.com embed snippet: creates window.Cal command queue, then dynamically loads embed.js
+      (function(C,A,L){var p=function(a,ar){a.q.push(ar);};C.Cal=C.Cal||function(){var cal=C.Cal,ar=arguments;if(!cal.loaded){cal.ns={};cal.q=cal.q||[];C.document.head.appendChild(C.document.createElement("script")).src=A;cal.loaded=true;}if(ar[0]===L){var api=function(){p(api,arguments);};var ns=ar[1];api.q=api.q||[];if(typeof ns==="string"){cal.ns[ns]=cal.ns[ns]||api;p(cal.ns[ns],ar);p(cal,["initNamespace",ns]);}else p(cal,ar);return;}p(cal,ar);};})(window,"https://cal.com/embed/embed.js","init");
+    </script>
+    <script is:inline>
+      var calLink = document.getElementById('calcom-embed').getAttribute('data-cal-link');
+      window.Cal('inline', {
+        elementOrSelector: '#calcom-embed',
+        calLink: calLink
+      });
     </script>
   )}
 </body>

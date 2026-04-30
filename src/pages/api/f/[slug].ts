@@ -236,12 +236,11 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       leadId,
     });
 
-    // 7. Run AI response pipeline (non-blocking)
-    // Fire and forget — the form responds immediately while the pipeline
-    // runs in the background. Errors are logged, not surfaced to the user.
-    runResponsePipeline(conversationId).catch((err) => {
-      console.error('Background pipeline error:', err);
-    });
+    // 7. Run AI response pipeline
+    // Must be awaited — Vercel serverless kills the process when the response
+    // is sent, so fire-and-forget promises get orphaned. We await the full
+    // pipeline so the AI response actually sends.
+    const pipelineResult = await runResponsePipeline(conversationId);
 
     // 8. Return success (with redirect if configured)
     const responseData = {
@@ -249,8 +248,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       message: form.submitMessage ?? 'Thank you! We\'ll be in touch soon.',
       redirectUrl: form.redirectUrl ?? undefined,
       leadId,
-      // Pipeline runs async — these are no longer awaited
-      aiResponseSent: undefined,
+      aiResponseSent: pipelineResult.aiResponseSent,
     };
 
     return new Response(JSON.stringify(responseData), {

@@ -60,6 +60,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     userId: user.id,
     email: user.email,
     role: user.role as 'owner' | 'admin' | 'viewer',
+    name: user.name || undefined,
   });
 
   // Build response with session cookie

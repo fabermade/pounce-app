@@ -186,6 +186,7 @@ export const POST: APIRoute = async ({ request }) => {
       userId: adminUser.id,
       email: adminUser.email,
       role: adminUser.role as 'owner',
+      name: adminUser.name || undefined,
     });
 
     const response = new Response(JSON.stringify({

@@ -194,32 +194,30 @@ if (selectedLeadId) {
                     </tr>
                   )}
                   {filteredLeads.map((lead) => (
-                    <a href={`/admin/leads?leadId=${lead.id}`} class="contents">
-                      <tr class="hover:bg-gray-50 transition-colors cursor-pointer">
-                        <td class="py-4 px-6">
-                          <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                              {(lead.name || lead.email).charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <p class="font-medium text-charcoal">{lead.name || 'Unknown'}</p>
-                              <p class="text-sm text-gray-500">{lead.email}</p>
-                            </div>
+                    <tr class="hover:bg-gray-50 transition-colors cursor-pointer" onclick={`window.location='/admin/leads?leadId=${lead.id}'`}>
+                      <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
+                            {(lead.name || lead.email).charAt(0).toUpperCase()}
                           </div>
-                        </td>
-                        <td class="py-4 px-6">
-                          <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status] || 'bg-gray-100 text-gray-800'}`}>
-                            {statusLabels[lead.status] || lead.status}
-                          </span>
-                        </td>
-                        <td class="py-4 px-6">
-                          <p class="text-sm text-gray-600 max-w-xs truncate">{lead.message || 'No message'}</p>
-                        </td>
-                        <td class="py-4 px-6">
-                          <span class="text-sm text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</span>
-                        </td>
-                      </tr>
-                    </a>
+                          <div>
+                            <p class="font-medium text-charcoal">{lead.name || 'Unknown'}</p>
+                            <p class="text-sm text-gray-500">{lead.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="py-4 px-6">
+                        <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status] || 'bg-gray-100 text-gray-800'}`}>
+                          {statusLabels[lead.status] || lead.status}
+                        </span>
+                      </td>
+                      <td class="py-4 px-6">
+                        <p class="text-sm text-gray-600 max-w-xs truncate">{lead.message || 'No message'}</p>
+                      </td>
+                      <td class="py-4 px-6">
+                        <span class="text-sm text-gray-500">{new Date(lead.createdAt).toLocaleDateString()}</span>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

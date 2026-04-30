@@ -1,6 +1,6 @@
+---
 const session = Astro.locals.session;
 const currentUser = session ? { name: session.name || null, email: session.email } : null;
----
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { db, leads } from '../../lib/db/index.js';

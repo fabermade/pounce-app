@@ -1,10 +1,11 @@
-const session = Astro.locals.session;
-const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { db, conversations, leads, messages } from '../../lib/db/index.js';
 import { eq, desc } from 'drizzle-orm';
+
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 
 const leadId = Astro.url.searchParams.get('leadId');
 

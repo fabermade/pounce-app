@@ -113,7 +113,7 @@ const hasAIResponse = selectedConv?.messages.some((m, i) => {
                   const lastMessage = conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null;
                   return (
                     <a
-                      href={`/admin/conversations?leadId=${conv.id}`}
+                      href={`/admin/conversations?leadId=${conv.leadId}`}
                       class={`block p-4 hover:bg-gray-50 transition-colors ${(conv.lead as any).status === 'new' ? 'bg-blue-50/50' : ''}`}
                     >
                       <div class="flex items-start justify-between mb-2">

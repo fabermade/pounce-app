@@ -334,7 +334,7 @@ export async function runResponsePipeline(
       subject: `Re: Your inquiry to ${config.business.business.name || 'us'}`,
       html: `<div style="font-family: sans-serif; max-width: 600px;">${finalResponse.replace(/\n/g, '<br>')}</div>${unsubscribeHtml}`,
       text: `${finalResponse}\n${unsubscribeText}`,
-      replyTo: config.business.escalation.notifyEmail || undefined,
+      replyTo: config.email.fromEmail || undefined,
     });
     emailMessageId = result.messageId;
   } catch (err) {

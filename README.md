@@ -27,6 +27,28 @@ curl -X POST http://localhost:4321/api/inbound \
   -d '{"name":"Test User","email":"test@example.com","message":"Hello, I need help!"}'
 ```
 
+## Sites & Domains
+
+These are four distinct things. Do not mix them.
+
+| Site | Domain | Purpose |
+|------|--------|---------|
+| **Faber Made** | fabermade.net | Agency site. Contact forms embed Pounce forms from `app.pouncefirst.com`. Leads go into Pounce, AI responds. This is what a customer site looks like. |
+| **Pounce App** | app.pouncefirst.com | The running product. Admin panel, lead pipeline, AI responses, settings. fabermade.net's forms POST here. Not the marketing site — this is the app. |
+| **Pounce Marketing** | www.pouncefirst.com | Where new customers learn about Pounce, sign up, and get a license key. Has a contact form running through Pounce so prospects can test the product — they submit, the AI responds, they experience it firsthand. The form is the demo. |
+| **License Server** | (internal) | Validates license keys for customer Pounce installations. Controls access and manages users. |
+
+**Key relationships:**
+- fabermade.net → embeds forms from → app.pouncefirst.com
+- www.pouncefirst.com → embeds forms from → app.pouncefirst.com (demo)
+- Future customer site → embeds forms from → their own Pounce instance → validates license via → license server
+
+**Rules:**
+- No hardcoded `pouncefirst.com` URLs in app code — use `APP_URL` env var
+- fabermade.net is not admin. app.pouncefirst.com is not marketing. www.pouncefirst.com is not the product.
+- The AI in the Pounce installation responds to leads. That's the product. No routing leads to humans instead of AI.
+- Embed forms are served from the Pounce instance, rendered on the customer's site, submitted back to the Pounce instance.
+
 ## Architecture
 
 ```

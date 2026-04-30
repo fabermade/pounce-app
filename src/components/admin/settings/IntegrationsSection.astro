@@ -60,14 +60,15 @@ const {
     <!-- Model Selector -->
     <div id="settings-model-container">
       <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
-      <select
-        id="settings-model-select"
+      <input
+        type="text"
+        id="settings-model-input"
         name="providers.model"
-        data-current={model}
+        value={model || ''}
+        placeholder="e.g. gpt-4o, claude-3.5-sonnet, glm-5.1:cloud"
         class="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange text-sm"
-      >
-        <option value="">Loading models...</option>
-      </select>
+      />
+      <p class="text-xs text-gray-400 mt-1">Enter the model ID exactly as your provider expects it.</p>
     </div>
 
     <!-- Base URL (Ollama only) -->
@@ -234,41 +235,8 @@ const {
 
 <script>
   const llmProviderSelect = document.getElementById('settings-llm-provider') as HTMLSelectElement;
-  const modelSelect = document.getElementById('settings-model-select') as HTMLSelectElement;
   const baseUrlContainer = document.getElementById('settings-base-url-container');
   const apiKeyContainer = document.getElementById('settings-api-key-container');
-
-  async function fetchModels(provider: string, currentModel?: string) {
-    if (!provider) return;
-
-    modelSelect.disabled = true;
-    modelSelect.innerHTML = '<option>Loading models...</option>';
-
-    try {
-      const baseUrl = document.querySelector('input[name="providers.llmBaseUrl"]') as HTMLInputElement;
-      const baseUrlParam = provider === 'ollama' && baseUrl ? `&baseUrl=${encodeURIComponent(baseUrl.value)}` : '';
-      const response = await fetch(`/api/admin/providers/models?provider=${encodeURIComponent(provider)}${baseUrlParam}`);
-      if (response.ok) {
-        const models = await response.json();
-        modelSelect.innerHTML = '<option value="">Select a model</option>';
-        models.forEach((m: { id: string; name: string }) => {
-          const option = document.createElement('option');
-          option.value = m.id;
-          option.textContent = m.name || m.id;
-          if (currentModel && m.id === currentModel) {
-            option.selected = true;
-          }
-          modelSelect.appendChild(option);
-        });
-        modelSelect.disabled = false;
-        modelSelect.classList.remove('bg-gray-50');
-      } else {
-        modelSelect.innerHTML = '<option>Failed to load models</option>';
-      }
-    } catch {
-      modelSelect.innerHTML = '<option>Failed to load models</option>';
-    }
-  }
 
   function updateProviderUI(provider: string) {
     if (provider === 'ollama') {
@@ -281,15 +249,12 @@ const {
   }
 
   llmProviderSelect?.addEventListener('change', () => {
-    const provider = llmProviderSelect.value;
-    updateProviderUI(provider);
-    fetchModels(provider, modelSelect.dataset.current);
+    updateProviderUI(llmProviderSelect.value);
   });
 
-  // Initialize on load — pass current model for pre-selection
+  // Initialize on load
   if (llmProviderSelect?.value) {
     updateProviderUI(llmProviderSelect.value);
-    fetchModels(llmProviderSelect.value, modelSelect.dataset.current);
   }
 
   // Inbox provider UI

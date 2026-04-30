@@ -1,16 +1,15 @@
 ---
 // Booking section component
-// Props: booking config (url, ctaText, timing, provider, webhookSecret)
+// Props: booking config (url, ctaText, timing, provider)
 
 interface Props {
   url?: string;
   ctaText?: string;
   timing?: string;
   provider?: string;
-  webhookSecretSet?: boolean;
 }
 
-const { url = '', ctaText = 'Book a call', timing = 'after_first_exchange', provider = '', webhookSecretSet = false } = Astro.props;
+const { url = '', ctaText = 'Book a call', timing = 'after_first_exchange', provider = '' } = Astro.props;
 
 const timingOptions = [
   { value: 'immediately', label: 'Immediately' },
@@ -79,20 +78,6 @@ const providerOptions = [
       </select>
     </div>
 
-    <!-- Webhook Secret (masked) -->
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Webhook Secret</label>
-      <div class="flex items-center gap-2">
-        <input
-          type="password"
-          disabled
-          value={webhookSecretSet ? 'configured-secret-value' : ''}
-          placeholder={webhookSecretSet ? '' : 'Not configured'}
-          class={`flex-1 px-4 py-2 rounded-lg border border-gray-200 text-sm ${webhookSecretSet ? 'text-gray-600 bg-gray-50' : 'text-gray-400 bg-gray-50'}`}
-        />
-        <span class="text-xs text-gray-400">env:BOOKING_WEBHOOK_SECRET</span>
-      </div>
-      <p class="text-xs text-gray-400 mt-1">Set via environment variable. Cannot be changed here.</p>
-    </div>
+
   </div>
 </div>

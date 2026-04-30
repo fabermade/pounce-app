@@ -236,8 +236,12 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       leadId,
     });
 
-    // 7. Run AI response pipeline
-    const pipelineResult = await runResponsePipeline(conversationId);
+    // 7. Run AI response pipeline (non-blocking)
+    // Fire and forget — the form responds immediately while the pipeline
+    // runs in the background. Errors are logged, not surfaced to the user.
+    runResponsePipeline(conversationId).catch((err) => {
+      console.error('Background pipeline error:', err);
+    });
 
     // 8. Return success (with redirect if configured)
     const responseData = {
@@ -245,7 +249,8 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       message: form.submitMessage ?? 'Thank you! We\'ll be in touch soon.',
       redirectUrl: form.redirectUrl ?? undefined,
       leadId,
-      aiResponseSent: pipelineResult.aiResponseSent,
+      // Pipeline runs async — these are no longer awaited
+      aiResponseSent: undefined,
     };
 
     return new Response(JSON.stringify(responseData), {

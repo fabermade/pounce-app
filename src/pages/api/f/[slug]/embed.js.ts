@@ -137,15 +137,16 @@ function render() {
   title.textContent = FORM_NAME;
   form.appendChild(title);
 
-  // Honeypot (hidden spam trap)
+  // Honeypot (hidden spam trap) — uses type=password to resist autofill
+  // Password managers skip type=password fields with tabindex=-1 and no label
   var hp = document.createElement('div');
   hp.className = 'pounce-hp';
   hp.setAttribute('aria-hidden', 'true');
   var hpInput = document.createElement('input');
-  hpInput.type = 'text';
+  hpInput.type = 'password';
   hpInput.name = 'pounce_hp';
   hpInput.tabIndex = -1;
-  hpInput.autocomplete = 'off';
+  hpInput.autocomplete = 'new-password';
   hp.appendChild(hpInput);
   form.appendChild(hp);
 

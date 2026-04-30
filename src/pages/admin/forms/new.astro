@@ -137,11 +137,11 @@ import AdminLayout from '../../../components/admin/AdminLayout';
     render();
   }
 
-  function updateField(id: string, key: keyof FormField, value: any) {
+  function updateField(id: string, key: keyof FormField, value: any, shouldRender = true) {
     const field = fields.find(f => f.id === id);
     if (field) {
       (field as any)[key] = value;
-      render();
+      if (shouldRender) render();
     }
   }
 
@@ -245,6 +245,17 @@ import AdminLayout from '../../../components/admin/AdminLayout';
     }
   }
 
+  function updatePreview() {
+    const preview = document.getElementById('preview-container');
+    if (fields.length === 0) {
+      if (preview) preview.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Add fields to see preview</p>';
+      return;
+    }
+    if (preview) preview.innerHTML = fields.map(renderPreviewField).join('') + `
+      <button class="w-full py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium">Submit</button>
+    `;
+  }
+
   function render() {
     const list = document.getElementById('fields-list');
     const noFields = document.getElementById('no-fields');
@@ -272,8 +283,11 @@ import AdminLayout from '../../../components/admin/AdminLayout';
           updateField(fieldId, 'required', (e.target as HTMLInputElement).checked);
         });
       } else {
+        // Text inputs: update model only, don't re-render editor (preserves focus)
+        // But do update the preview panel
         el.addEventListener('input', (e) => {
-          updateField(fieldId, key as keyof FormField, (e.target as HTMLInputElement).value);
+          updateField(fieldId, key as keyof FormField, (e.target as HTMLInputElement).value, false);
+          updatePreview();
         });
       }
     });
@@ -319,7 +333,8 @@ import AdminLayout from '../../../components/admin/AdminLayout';
         const field = fields.find(f => f.id === fieldId);
         if (field && field.options) {
           field.options[idx] = (el as HTMLInputElement).value;
-          render();
+          // Don't re-render — just update model so preview stays in sync without destroying focus
+          updatePreview();
         }
       });
     });

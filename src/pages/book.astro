@@ -42,7 +42,7 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Book a Call — {businessName}</title>
-  <style>
+  <style is:global>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -74,7 +74,6 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       padding: 40px 20px;
     }
     .no-booking {
@@ -124,7 +123,7 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
       isCalendly ? (
         <div class="calendly-inline-widget" data-url={bookingUrl}></div>
       ) : isCalcom ? (
-        <div id="calcom-embed"></div>
+        <div id="calcom-embed" data-cal-link={bookingUrl.replace('https://cal.com/', '').replace('https://app.cal.com/', '').replace(/\/+$/, '')}></div>
       ) : (
         <div class="no-booking">
           <h2>📅 {bookingCta}</h2>
@@ -146,28 +145,19 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
   )}
 
   {isCalcom && bookingUrl && (
-    <span id="cal-link-data" data-link={bookingUrl.replace('https://cal.com/', '').replace('https://app.cal.com/', '').replace(/\/+$/, '')} style="display:none"></span>
     <script is:inline src="https://app.cal.com/embed/embed.js" async></script>
-  )}
-
-  {isCalcom && bookingUrl && (
     <script is:inline>
       function initCal() {
         if (!window.Cal) {
           setTimeout(initCal, 100);
           return;
         }
-        var el = document.getElementById('cal-link-data');
-        var calLink = el ? el.getAttribute('data-link') : '';
-        var container = document.getElementById('calcom-embed');
-        if (container && calLink) {
+        var el = document.getElementById('calcom-embed');
+        var calLink = el ? el.getAttribute('data-cal-link') : '';
+        if (el && calLink) {
           window.Cal('inline', {
-            elementOrSelector: '#calcom-embed',
-            calLink: calLink,
-            config: { layout: 'month_view' }
-          });
-          window.Cal('ui', {
-            styles: { branding: { brandColor: '#FF6B35' } }
+            elementOrSelector: el,
+            calLink: calLink
           });
         }
       }

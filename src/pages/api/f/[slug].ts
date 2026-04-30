@@ -18,6 +18,19 @@ import { addMessage } from '@/lib/core/conversation.js';
 import { runResponsePipeline } from '@/lib/core/response-pipeline.js';
 import { logEvent } from '@/lib/core/pipeline.js';
 
+// ─── CORS ────────────────────────────────────────────────────
+// Embedded forms submit from external domains — allow all origins.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
+
+export const OPTIONS: APIRoute = async () => {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+};
+
 // ─── Rate Limiting ─────────────────────────────────────────────────
 // In-memory rate limit: max 5 submissions per IP per form per minute
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -53,10 +66,11 @@ setInterval(() => {
 }, 5 * 60_000);
 
 export const POST: APIRoute = async ({ request, params, clientAddress }) => {
+  const corsHeaders = { ...CORS_HEADERS, 'Content-Type': 'application/json' };
   const slug = params.slug;
   if (!slug) {
     return new Response(JSON.stringify({ error: 'Form slug is required' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
+      status: 400, headers: corsHeaders,
     });
   }
 
@@ -64,7 +78,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
   const ip = clientAddress ?? request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
   if (!checkRateLimit(ip, slug)) {
     return new Response(JSON.stringify({ error: 'Too many submissions. Please wait a minute and try again.' }), {
-      status: 429, headers: { 'Content-Type': 'application/json' },
+      status: 429, headers: corsHeaders,
     });
   }
 
@@ -77,7 +91,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
   if (!form || !form.active) {
     return new Response(JSON.stringify({ error: 'Form not found or inactive' }), {
-      status: 404, headers: { 'Content-Type': 'application/json' },
+      status: 404, headers: corsHeaders,
     });
   }
 
@@ -90,7 +104,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       body = await request.json();
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
+        status: 400, headers: corsHeaders,
       });
     }
   } else {
@@ -100,7 +114,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       body = Object.fromEntries(formData.entries());
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid form data' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
+        status: 400, headers: corsHeaders,
       });
     }
   }
@@ -114,7 +128,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
       success: true,
       message: form.submitMessage ?? 'Thank you! We\'ll be in touch soon.',
     }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
+      status: 200, headers: corsHeaders,
     });
   }
   // Remove honeypot from data so it's not stored
@@ -137,7 +151,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
   if (Object.keys(errors).length > 0) {
     return new Response(JSON.stringify({ error: 'Validation failed', details: errors }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
+      status: 400, headers: corsHeaders,
     });
   }
 
@@ -155,7 +169,7 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
 
   if (!email) {
     return new Response(JSON.stringify({ error: 'Email field is required' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
+      status: 400, headers: corsHeaders,
     });
   }
 
@@ -235,12 +249,12 @@ export const POST: APIRoute = async ({ request, params, clientAddress }) => {
     };
 
     return new Response(JSON.stringify(responseData), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
+      status: 200, headers: corsHeaders,
     });
   } catch (err) {
     console.error('Form submission error:', err);
     return new Response(JSON.stringify({ error: 'Failed to process submission' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+      status: 500, headers: corsHeaders,
     });
   }
 };

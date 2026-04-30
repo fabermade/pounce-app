@@ -84,7 +84,7 @@ const timings = [
           type="text"
           readonly
           id="webhook-url"
-          value={booking.provider ? `https://www.pouncefirst.com/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
+          value={booking.provider ? `https://app.pouncefirst.com/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
           class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
         />
         <button
@@ -114,7 +114,7 @@ const timings = [
     if (webhookContainer) webhookContainer.style.display = show ? 'block' : 'none';
     if (webhookInput) {
       webhookInput.value = provider
-        ? `https://www.pouncefirst.com/api/webhook/booking?provider=${provider}`
+        ? `https://app.pouncefirst.com/api/webhook/booking?provider=${provider}`
         : 'Select a provider to see webhook URL';
     }
   }

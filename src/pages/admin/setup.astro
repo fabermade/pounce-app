@@ -376,11 +376,22 @@ const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
         errorBanner.classList.add('hidden');
 
         const formData = new FormData(setupForm);
+
+        // Convert flat FormData with dot-notation keys (e.g. "admin.name")
+        // into nested objects (e.g. { admin: { name: "..." } })
         const data: Record<string, unknown> = {};
 
         for (const [key, value] of formData.entries()) {
-          // Convert checkboxes
-          (data as Record<string, unknown>)[key] = value === 'on' ? true : value;
+          const parts = key.split('.');
+          let current: Record<string, unknown> = data;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i]! in current)) {
+              current[parts[i]!] = {};
+            }
+            current = current[parts[i]!] as Record<string, unknown>;
+          }
+          const leafKey = parts[parts.length - 1]!;
+          current[leafKey] = value === 'on' ? true : value;
         }
 
         try {
@@ -393,9 +404,21 @@ const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
           if (res.ok) {
             window.location.href = '/admin';
           } else {
-            const err = await res.json().catch(() => ({ error: 'Setup failed' }));
-            errorMsg.textContent = err.error || 'Setup failed. Please try again.';
-            errorBanner.classList.remove('hidden');
+            let errorMsg = 'Setup failed. Please try again.';
+            try {
+              const err = await res.json();
+              if (typeof err.error === 'string') {
+                errorMsg = err.error;
+              } else if (err.error?.fieldErrors) {
+                // Zod validation errors — show first field error
+                const fields = Object.values(err.error.fieldErrors ?? {});
+                if (fields.length > 0) {
+                  errorMsg = fields.flat().join(' ');
+                }
+              }
+            } catch { /* use default */ }
+            document.getElementById('setup-error-msg')!.textContent = errorMsg;
+            document.getElementById('setup-error')!.classList.remove('hidden');
           }
         } catch {
           errorMsg.textContent = 'Network error. Please try again.';

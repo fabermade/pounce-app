@@ -79,14 +79,40 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // 4. Parse into structured email using email-parser
+  // 4. Normalize Resend's address objects to strings
+  // Resend webhook sends from/to/reply_to as {address, name} objects or strings
+  function extractAddress(addr: unknown): string {
+    if (typeof addr === 'string') return addr;
+    if (addr && typeof addr === 'object' && 'address' in (addr as object)) {
+      return String((addr as { address: string }).address);
+    }
+    return '';
+  }
+  function extractAddresses(addrs: unknown): string[] {
+    if (Array.isArray(addrs)) return addrs.map(extractAddress).filter(Boolean);
+    if (typeof addrs === 'string') return [addrs];
+    return [];
+  }
+  function formatFrom(addr: unknown): string {
+    if (typeof addr === 'string') return addr;
+    if (addr && typeof addr === 'object' && 'address' in (addr as object)) {
+      const obj = addr as { address: string; name?: string };
+      return obj.name ? `${obj.name} <${obj.address}>` : obj.address;
+    }
+    return String(addr ?? '');
+  }
+
+  const fromStr = formatFrom(rawEmail.from);
+  const toStr = extractAddresses(rawEmail.to).join(', ');
+  const replyToStr = extractAddresses(rawEmail.reply_to).join(', ') || undefined;
+
   const email = parseInboundEmail({
-    from: String(rawEmail.from ?? ''),
-    to: rawEmail.to as string | string[] ?? [],
+    from: fromStr,
+    to: toStr,
     subject: String(rawEmail.subject ?? ''),
     text: String(rawEmail.text ?? ''),
     html: String(rawEmail.html ?? ''),
-    replyTo: rawEmail.reply_to as string | string[] | undefined,
+    replyTo: replyToStr,
     headers: rawEmail.headers as Record<string, string> | undefined,
   });
 

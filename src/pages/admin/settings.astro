@@ -164,6 +164,8 @@ const emailKeySet = !!(providers.emailApiKey);
             llmBaseUrl={providers.llmBaseUrl || ''}
             llmKeySet={llmKeySet}
             emailKeySet={emailKeySet}
+            inboxProvider={providers.inbox || ''}
+            inboxAuthenticated={!!providers.inbox}
             appUrl={APP_URL}
           />
 

@@ -15,6 +15,7 @@ export interface SessionData {
   userId: string;
   email: string;
   role: UserRole;
+  name?: string;
 }
 
 export interface SessionResult {
@@ -75,6 +76,7 @@ export async function verifySession(token: string): Promise<SessionData | null> 
       userId: payload.userId as string,
       email: payload.email as string,
       role: payload.role as UserRole,
+      name: (payload.name as string) || undefined,
     };
   } catch {
     // Token invalid, expired, or tampered

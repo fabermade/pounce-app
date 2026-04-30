@@ -1,3 +1,5 @@
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -85,7 +87,7 @@ const hasAIResponse = selectedConv?.messages.some((m, i) => {
 ---
 
 <AdminPage title="Conversations" currentPath="/admin/conversations">
-  <AdminLayout currentPath="/admin/conversations">
+  <AdminLayout currentPath="/admin/conversations" currentUser={currentUser}>
     <div class="p-8">
       <!-- Header -->
       <div class="mb-8">

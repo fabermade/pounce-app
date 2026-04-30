@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, MessageSquare, Settings, BarChart3, Calendar, F
 interface AdminLayoutProps {
   children: React.ReactNode;
   currentPath: string;
+  currentUser?: { name: string | null; email: string } | null;
 }
 
 const navItems = [
@@ -16,7 +17,7 @@ const navItems = [
   { path: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function AdminLayout({ children, currentPath }: AdminLayoutProps) {
+export default function AdminLayout({ children, currentPath, currentUser }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-cream flex">
       {/* Sidebar */}
@@ -57,11 +58,11 @@ export default function AdminLayout({ children, currentPath }: AdminLayoutProps)
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-charcoal flex items-center justify-center text-white text-sm font-medium">
-              A
+              {(currentUser?.name?.[0] || currentUser?.email?.[0] || 'A').toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-charcoal truncate">Admin User</p>
-              <p className="text-xs text-gray-500 truncate">admin@pouncefirst.com</p>
+              <p className="text-sm font-medium text-charcoal truncate">{currentUser?.name || 'Admin'}</p>
+              <p className="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
         </div>

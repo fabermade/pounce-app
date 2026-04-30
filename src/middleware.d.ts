@@ -6,6 +6,7 @@ declare namespace Astro {
       userId: string;
       email: string;
       role: 'owner' | 'admin' | 'viewer';
+      name?: string;
     };
   }
 }

@@ -1,3 +1,5 @@
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -48,7 +50,7 @@ const filteredLeads = statusFilter && statusFilter !== 'all'
 ---
 
 <AdminPage title="Leads" currentPath="/admin/leads">
-  <AdminLayout currentPath="/admin/leads">
+  <AdminLayout currentPath="/admin/leads" currentUser={currentUser}>
     <div class="p-8">
       <!-- Header -->
       <div class="mb-8">

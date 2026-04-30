@@ -1,3 +1,5 @@
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -22,7 +24,7 @@ try {
 ---
 
 <AdminPage title="Forms" currentPath="/admin/forms">
-<AdminLayout currentPath="/admin/forms">
+<AdminLayout currentPath="/admin/forms" currentUser={currentUser}>
   <div class="p-8 max-w-5xl mx-auto">
     <div class="flex items-center justify-between mb-8">
       <div>

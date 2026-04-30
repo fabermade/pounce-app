@@ -1,3 +1,5 @@
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -8,7 +10,7 @@ const errorMsg = params.get('error') || '';
 ---
 
 <AdminPage title="Connect Gmail" currentPath="/admin/settings">
-  <AdminLayout currentPath="/admin/settings">
+  <AdminLayout currentPath="/admin/settings" currentUser={currentUser}>
     <div class="p-8 max-w-xl mx-auto">
       <div class="bg-white rounded-xl border border-gray-200 p-8 text-center">
         {status === 'success' ? (

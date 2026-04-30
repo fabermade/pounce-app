@@ -2,6 +2,9 @@
 import AdminPage from '../../layouts/AdminPage.astro';
 import AdminLayout from '../../components/admin/AdminLayout';
 
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
+
 // Fetch data from APIs
 let stats = { totalLeads: 0, responseRate: 0, avgResponseTime: '0', bookingRate: 0, leadsThisWeek: 0, leadsLastWeek: 0 };
 let recentLeads: Array<{
@@ -65,7 +68,7 @@ const statusLabels: Record<string, string> = {
 ---
 
 <AdminPage title="Dashboard" currentPath="/admin">
-  <AdminLayout currentPath="/admin">
+  <AdminLayout currentPath="/admin" currentUser={currentUser}>
     <div class="p-8">
       <!-- Header -->
       <div class="mb-8">

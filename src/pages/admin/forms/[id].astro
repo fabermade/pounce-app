@@ -1,3 +1,5 @@
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 import AdminPage from '../../../layouts/AdminPage.astro';
 import AdminLayout from '../../../components/admin/AdminLayout';
@@ -21,10 +23,12 @@ try {
 }
 
 const APP_URL = import.meta.env.APP_URL || process.env.APP_URL || Astro.url.origin;
+const session = Astro.locals.session;
+const currentUser = session ? { name: session.name || null, email: session.email } : null;
 ---
 
 <AdminPage title="Edit Form" currentPath="/admin/forms">
-<AdminLayout currentPath="/admin/forms">
+<AdminLayout currentPath="/admin/forms" currentUser={currentUser}>
   <div class="p-8 max-w-6xl mx-auto">
     <div class="mb-8">
       <a href="/admin/forms" class="text-sm text-gray-500 hover:text-charcoal transition-colors mb-2 inline-block">&larr; Back to forms</a>

@@ -160,10 +160,16 @@ import AdminLayout from '../../../components/admin/AdminLayout';
     render();
   }
 
+  function escapeHtml(str: string): string {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   function renderFieldEditor(field: FormField): string {
     const optionsHtml = field.options ? field.options.map((opt, i) => `
       <div class="flex items-center gap-2">
-        <input type="text" value="${opt}" data-field="${field.id}" data-opt-idx="${i}" class="option-input flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
+        <input type="text" value="${escapeHtml(opt)}" data-field="${field.id}" data-opt-idx="${i}" class="option-input flex-1 px-2 py-1 text-xs border border-gray-200 rounded" />
         <button data-field="${field.id}" data-remove-opt="${i}" class="text-red-400 hover:text-red-600 text-xs">&times;</button>
       </div>
     `).join('') : '';
@@ -172,8 +178,8 @@ import AdminLayout from '../../../components/admin/AdminLayout';
       <div class="border border-gray-200 rounded-lg p-4 bg-gray-50/50" data-field-id="${field.id}">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-gray-500 uppercase">${field.type}</span>
-            <input type="text" value="${field.label}" data-field="${field.id}" data-key="label" class="font-medium text-sm bg-transparent border-b border-transparent hover:border-gray-300 focus:border-pounce-orange focus:outline-none px-1" />
+            <span class="text-xs font-medium text-gray-500 uppercase">${escapeHtml(field.type)}</span>
+            <input type="text" value="${escapeHtml(field.label)}" data-field="${field.id}" data-key="label" class="font-medium text-sm bg-transparent border-b border-transparent hover:border-gray-300 focus:border-pounce-orange focus:outline-none px-1" />
           </div>
           <div class="flex items-center gap-1">
             <button data-move="${field.id}" data-dir="up" class="p-1 text-gray-400 hover:text-charcoal" title="Move up">&uarr;</button>
@@ -184,11 +190,11 @@ import AdminLayout from '../../../components/admin/AdminLayout';
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-gray-500">Name</label>
-            <input type="text" value="${field.name}" data-field="${field.id}" data-key="name" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
+            <input type="text" value="${escapeHtml(field.name)}" data-field="${field.id}" data-key="name" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
           </div>
           <div>
             <label class="text-xs text-gray-500">Placeholder</label>
-            <input type="text" value="${field.placeholder || ''}" data-field="${field.id}" data-key="placeholder" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
+            <input type="text" value="${escapeHtml(field.placeholder || '')}" data-field="${field.id}" data-key="placeholder" class="w-full px-2 py-1 text-xs border border-gray-200 rounded" />
           </div>
         </div>
         <div class="flex items-center gap-2 mt-3">
@@ -208,23 +214,24 @@ import AdminLayout from '../../../components/admin/AdminLayout';
 
   function renderPreviewField(field: FormField): string {
     const required = field.required ? ' *' : '';
+    const esc = escapeHtml;
     const commonClasses = 'w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-pounce-orange/20 focus:border-pounce-orange';
 
     switch (field.type) {
       case 'textarea':
         return `
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
-            <textarea placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} class="${commonClasses} min-h-[100px] resize-y"></textarea>
+            <label class="block text-sm font-medium text-gray-700 mb-1">${esc(field.label)}${required}</label>
+            <textarea placeholder="${esc(field.placeholder || '')}" ${field.required ? 'required' : ''} class="${commonClasses} min-h-[100px] resize-y"></textarea>
           </div>
         `;
       case 'select':
         return `
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">${esc(field.label)}${required}</label>
             <select ${field.required ? 'required' : ''} class="${commonClasses} bg-white">
               <option value="">Select...</option>
-              ${(field.options || []).map(o => `<option>${o}</option>`).join('')}
+              ${(field.options || []).map(o => `<option>${esc(o)}</option>`).join('')}
             </select>
           </div>
         `;
@@ -232,14 +239,14 @@ import AdminLayout from '../../../components/admin/AdminLayout';
         return `
           <div class="flex items-center gap-2">
             <input type="checkbox" ${field.required ? 'required' : ''} class="w-4 h-4 rounded border-gray-300 text-pounce-orange focus:ring-pounce-orange" />
-            <label class="text-sm text-gray-700">${field.label}${required}</label>
+            <label class="text-sm text-gray-700">${esc(field.label)}${required}</label>
           </div>
         `;
       default:
         return `
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${required}</label>
-            <input type="${field.type}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} class="${commonClasses}" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">${esc(field.label)}${required}</label>
+            <input type="${esc(field.type)}" placeholder="${esc(field.placeholder || '')}" ${field.required ? 'required' : ''} class="${commonClasses}" />
           </div>
         `;
     }

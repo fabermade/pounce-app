@@ -146,27 +146,21 @@ const isCalcom = bookingProvider === 'calcom' && bookingUrl;
   )}
 
   {isCalcom && bookingUrl && (
+    <span id="cal-link-data" data-link={bookingUrl.replace('https://cal.com/', '').replace('https://app.cal.com/', '').replace(/\/+$/, '')} style="display:none"></span>
     <script is:inline src="https://app.cal.com/embed/embed.js" async></script>
   )}
 
   {isCalcom && bookingUrl && (
     <script is:inline>
-      // Extract calLink from URL (e.g. https://cal.com/faber-made-tyler → faber-made-tyler)
-      var bookingUrlRaw = '{bookingUrl}';
-      try {
-        var urlObj = new URL(bookingUrlRaw);
-        var calLink = urlObj.pathname.replace(/^\//, '');
-      } catch(e) {
-        var calLink = bookingUrlRaw;
-      }
-
       function initCal() {
         if (!window.Cal) {
           setTimeout(initCal, 100);
           return;
         }
+        var el = document.getElementById('cal-link-data');
+        var calLink = el ? el.getAttribute('data-link') : '';
         var container = document.getElementById('calcom-embed');
-        if (container) {
+        if (container && calLink) {
           window.Cal('inline', {
             elementOrSelector: '#calcom-embed',
             calLink: calLink,

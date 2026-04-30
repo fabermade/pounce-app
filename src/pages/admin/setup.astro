@@ -376,11 +376,22 @@ const needsAdminOnly = setupStatus.completed && !setupStatus.hasUsers;
         errorBanner.classList.add('hidden');
 
         const formData = new FormData(setupForm);
+
+        // Convert flat FormData with dot-notation keys (e.g. "admin.name")
+        // into nested objects (e.g. { admin: { name: "..." } })
         const data: Record<string, unknown> = {};
 
         for (const [key, value] of formData.entries()) {
-          // Convert checkboxes
-          (data as Record<string, unknown>)[key] = value === 'on' ? true : value;
+          const parts = key.split('.');
+          let current: Record<string, unknown> = data;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!(parts[i]! in current)) {
+              current[parts[i]!] = {};
+            }
+            current = current[parts[i]!] as Record<string, unknown>;
+          }
+          const leafKey = parts[parts.length - 1]!;
+          current[leafKey] = value === 'on' ? true : value;
         }
 
         try {

@@ -93,8 +93,15 @@ export const POST: APIRoute = async ({ request }) => {
 
   const parsed = setupSchema.safeParse(body);
   if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors;
+    const messages: string[] = [];
+    for (const [field, errors] of Object.entries(fieldErrors)) {
+      if (errors && errors.length > 0) {
+        messages.push(`${field}: ${errors.join(', ')}`);
+      }
+    }
     return new Response(
-      JSON.stringify({ error: parsed.error.flatten() }),
+      JSON.stringify({ error: messages.length > 0 ? messages.join('; ') : 'Validation failed' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } },
     );
   }

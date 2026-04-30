@@ -39,7 +39,7 @@ try {
     {form && (
       <>
         <!-- Hidden data for client script -->
-        <script type="application/json" id="form-data" set:html={JSON.stringify(form)}></script>
+        <script type="application/json" id="form-data" set:html={JSON.stringify(form)} is:inline></script>
 
         <!-- Analytics Section -->
         <div id="analytics-section" class="mb-6">

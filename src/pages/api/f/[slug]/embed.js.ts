@@ -10,10 +10,10 @@
  * 6. Applies branding from form config
  *
  * Usage:
- *   <script src="https://app.pouncefirst.com/api/f/contact/embed.js"></script>
+ *   <script src="https://your-pounce-instance.com/api/f/contact/embed.js"></script>
  *
  * Or with container options:
- *   <script src="https://app.pouncefirst.com/api/f/contact/embed.js"
+ *   <script src="https://your-pounce-instance.com/api/f/contact/embed.js"
  *           data-primary-color="#FF6B35"
  *           data-border-radius="12"></script>
  */
@@ -61,7 +61,7 @@ export const GET: APIRoute = async ({ params, url }) => {
     options?: string[];
   }>;
 
-  const APP_URL = import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://app.pouncefirst.com';
+  const APP_URL = import.meta.env.APP_URL ?? process.env.APP_URL ?? '';
   const submitUrl = `${APP_URL}/api/f/${slug}`;
 
   // Read customization from query params or use defaults (sanitize for script context)

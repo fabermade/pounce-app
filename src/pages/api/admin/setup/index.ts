@@ -49,7 +49,7 @@ const setupSchema = z.object({
     llmModel: z.string().optional(),
     email: z.enum(['resend', 'sendgrid', 'mailgun']).default('resend'),
     emailApiKey: z.string().min(1, 'Email API key is required'),
-    fromEmail: z.string().email('Must be a valid email').default('hello@pouncefirst.com'),
+    fromEmail: z.string().email('Must be a valid email').default('hello@yourdomain.com'),
   }),
   escalation: z.object({
     notifyEmail: z.string().email('Must be a valid email'),

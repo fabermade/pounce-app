@@ -7,9 +7,10 @@ interface Props {
   ctaText?: string;
   timing?: string;
   provider?: string;
+  appUrl?: string;
 }
 
-const { url = '', ctaText = 'Book a call', timing = 'after_first_exchange', provider = '' } = Astro.props;
+const { url = '', ctaText = 'Book a call', timing = 'after_first_exchange', provider = '', appUrl = '' } = Astro.props;
 
 const timingOptions = [
   { value: 'immediately', label: 'Immediately' },

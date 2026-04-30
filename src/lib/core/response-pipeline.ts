@@ -104,9 +104,9 @@ export async function loadPipelineConfig(): Promise<PipelineConfig> {
   const llmApiKey = resolveEnvKey(String(providers.llmApiKey ?? ''));
   const emailApiKey = resolveEnvKey(String(providers.emailApiKey ?? ''));
 
-  const fromEmail = String(providers.fromEmail ?? 'hello@pouncefirst.com');
+  const fromEmail = String(providers.fromEmail ?? 'hello@yourdomain.com');
   const unsubscribeBase = String(
-    import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://pouncefirst.com'
+    import.meta.env.APP_URL ?? process.env.APP_URL ?? ''
   );
 
   return {

@@ -6,9 +6,10 @@ export interface Props {
     cta?: string;
     timing?: string;
   };
+  appUrl?: string;
 }
 
-const { booking = {} } = Astro.props;
+const { booking = {}, appUrl = '' } = Astro.props;
 const providers = [
   { value: 'calcom', label: 'Cal.com' },
   { value: 'calendly', label: 'Calendly' },
@@ -77,14 +78,14 @@ const timings = [
       </select>
     </div>
 
-    <div id="webhook-url-container" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <div id="webhook-url-container" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200" data-app-url={appUrl}>
       <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Webhook URL (for {booking.provider || 'provider'} dashboard)</label>
       <div class="flex items-center gap-2">
         <input
           type="text"
           readonly
           id="webhook-url"
-          value={booking.provider ? `https://app.pouncefirst.com/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
+          value={booking.provider ? `${appUrl}/api/webhook/booking?provider=${booking.provider}` : 'Select a provider to see webhook URL'}
           class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
         />
         <button
@@ -104,6 +105,7 @@ const timings = [
   const timingContainer = document.getElementById('booking-timing-container');
   const webhookContainer = document.getElementById('webhook-url-container');
   const webhookInput = document.getElementById('webhook-url') as HTMLInputElement;
+  const appUrl = webhookContainer?.dataset.appUrl || '';
 
   function updateVisibility() {
     const provider = providerSelect.value;
@@ -114,7 +116,7 @@ const timings = [
     if (webhookContainer) webhookContainer.style.display = show ? 'block' : 'none';
     if (webhookInput) {
       webhookInput.value = provider
-        ? `https://app.pouncefirst.com/api/webhook/booking?provider=${provider}`
+        ? `${appUrl}/api/webhook/booking?provider=${provider}`
         : 'Select a provider to see webhook URL';
     }
   }

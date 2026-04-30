@@ -14,7 +14,7 @@ export class ResendProvider implements EmailProvider {
 
   constructor(apiKey: string, defaultFromEmail?: string) {
     this.client = new Resend(apiKey);
-    this.defaultFromEmail = defaultFromEmail ?? 'hello@pouncefirst.com';
+    this.defaultFromEmail = defaultFromEmail ?? 'hello@yourdomain.com';
   }
 
   async send(params: EmailSendParams): Promise<EmailSendResult> {

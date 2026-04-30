@@ -133,7 +133,7 @@ export async function getOAuthConfig(provider: string): Promise<{
     accessToken: resolveEnvKey(String(providers[`${provider}AccessToken`] ?? '')),
     refreshToken: resolveEnvKey(String(providers[`${provider}RefreshToken`] ?? '')),
     tokenExpiry: String(providers[`${provider}TokenExpiry`] ?? ''),
-    redirectUri: resolveEnvKey(String(providers[`${provider}RedirectUri`] ?? `${String(import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://pouncefirst.com')}/api/auth/${provider}/callback`)),
+    redirectUri: resolveEnvKey(String(providers[`${provider}RedirectUri`] ?? `${String(import.meta.env.APP_URL ?? process.env.APP_URL ?? '')}/api/auth/${provider}/callback`)),
   };
 }
 

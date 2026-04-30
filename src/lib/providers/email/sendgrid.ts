@@ -13,7 +13,7 @@ export class SendGridProvider implements EmailProvider {
 
   constructor(apiKey: string, defaultFromEmail?: string) {
     this.apiKey = apiKey;
-    this.defaultFromEmail = defaultFromEmail ?? 'hello@pouncefirst.com';
+    this.defaultFromEmail = defaultFromEmail ?? 'hello@yourdomain.com';
   }
 
   async send(params: EmailSendParams): Promise<EmailSendResult> {

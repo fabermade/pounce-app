@@ -37,7 +37,7 @@ const fields = form.fields as Array<{
   options?: string[];
 }>;
 
-const APP_URL = import.meta.env.APP_URL || 'https://app.pouncefirst.com';
+const APP_URL = import.meta.env.APP_URL || process.env.APP_URL || '';
 ---
 
 <!DOCTYPE html>

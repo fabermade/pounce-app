@@ -13,6 +13,7 @@ interface Props {
   inboxProvider?: string;
   inboxAuthenticated?: boolean;
   inboxLastSync?: string;
+  appUrl?: string;
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   inboxProvider = '',
   inboxAuthenticated = false,
   inboxLastSync = '',
+  appUrl = '',
 } = Astro.props;
 ---
 
@@ -213,7 +215,7 @@ const {
           <input
             type="text"
             readonly
-            value="https://app.pouncefirst.com/api/webhook/resend"
+            value={`${appUrl}/api/webhook/resend`}
             class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-600"
           />
           <button

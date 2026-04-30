@@ -14,7 +14,7 @@ export class MailgunProvider implements EmailProvider {
 
   constructor(apiKey: string, defaultFromEmail?: string, domain?: string) {
     this.apiKey = apiKey;
-    this.domain = domain ?? process.env.MAILGUN_DOMAIN ?? 'pouncefirst.com';
+    this.domain = domain ?? process.env.MAILGUN_DOMAIN ?? '';
     this.defaultFromEmail = defaultFromEmail ?? `hello@${this.domain}`;
   }
 

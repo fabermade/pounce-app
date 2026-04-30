@@ -47,7 +47,7 @@ export const GET: APIRoute = async () => {
       faq: [],
       escalation: { triggerPhrases: [], notifyEmail: '' },
       booking: { url: '', cta: 'Book a Call', timing: 'after_second_exchange', provider: 'calcom' },
-      providers: { llm: 'openai', llmApiKey: '', llmModel: '', email: 'resend', emailApiKey: '', fromEmail: 'hello@pouncefirst.com', inbox: '', booking: 'calcom' },
+      providers: { llm: 'openai', llmApiKey: '', llmModel: '', email: 'resend', emailApiKey: '', fromEmail: 'hello@yourdomain.com', inbox: '', booking: 'calcom' },
       agent: { enabled: false, webhookUrl: '' },
     };
 

@@ -12,6 +12,8 @@ import ToneSection from '../../components/admin/settings/ToneSection.astro';
 import { db, businessConfig } from '../../lib/db/index.js';
 import { eq } from 'drizzle-orm';
 
+const APP_URL = import.meta.env.APP_URL || process.env.APP_URL || '';
+
 // Read config directly from DB — no fetch() (SSR pages don't forward cookies)
 const configRows = await db.select().from(businessConfig);
 const configMap: Record<string, unknown> = {};
@@ -150,6 +152,7 @@ const emailKeySet = !!(providers.emailApiKey);
             ctaText={booking.ctaText || booking.cta || ''}
             timing={booking.timing || 'after_first_exchange'}
             provider={providers.booking || booking.provider || ''}
+            appUrl={APP_URL}
           />
 
           <!-- Integrations -->
@@ -161,6 +164,7 @@ const emailKeySet = !!(providers.emailApiKey);
             llmBaseUrl={providers.llmBaseUrl || ''}
             llmKeySet={llmKeySet}
             emailKeySet={emailKeySet}
+            appUrl={APP_URL}
           />
 
           <!-- Agent Mode -->

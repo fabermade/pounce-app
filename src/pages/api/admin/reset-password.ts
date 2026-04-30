@@ -73,7 +73,7 @@ export const POST: APIRoute = async ({ request }) => {
   });
 
   // Build reset URL
-  const appUrl = String(import.meta.env.APP_URL ?? process.env.APP_URL ?? 'https://pouncefirst.com');
+  const appUrl = String(import.meta.env.APP_URL ?? process.env.APP_URL ?? '');
   const resetUrl = `${appUrl}/admin/reset-password?token=${rawToken}`;
 
   // Send reset email via configured email provider
@@ -87,7 +87,7 @@ export const POST: APIRoute = async ({ request }) => {
     const providers = (providerConfig?.value ?? {}) as Record<string, unknown>;
     const emailProvider = String(providers.email ?? 'resend');
     const emailApiKey = resolveEnvKey(String(providers.emailApiKey ?? ''));
-    const fromEmail = String(providers.fromEmail ?? 'hello@pouncefirst.com');
+    const fromEmail = String(providers.fromEmail ?? 'hello@yourdomain.com');
 
     if (emailApiKey) {
       const [bizConfig] = await db

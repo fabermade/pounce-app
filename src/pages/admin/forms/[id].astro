@@ -19,6 +19,8 @@ try {
 } catch (e) {
   error = 'Failed to load form';
 }
+
+const APP_URL = import.meta.env.APP_URL || process.env.APP_URL || Astro.url.origin;
 ---
 
 <AdminPage title="Edit Form" currentPath="/admin/forms">
@@ -83,13 +85,13 @@ try {
             <input
               type="text"
               readonly
-              value={`<script src="https://app.pouncefirst.com/api/f/${form.slug}/embed.js"></script>`}
+              value={`<script src="${APP_URL}/api/f/${form.slug}/embed.js"></script>`}
               id="embed-code"
               class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600"
             />
             <button id="open-embed-modal" class="px-4 py-2.5 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Get Embed Code</button>
           </div>
-          <p class="text-xs text-gray-400 mt-2">Public URL: <a href={`/f/${form.slug}`} class="text-pounce-orange hover:underline">https://app.pouncefirst.com/f/{form.slug}</a></p>
+          <p class="text-xs text-gray-400 mt-2">Public URL: <a href={`/f/${form.slug}`} class="text-pounce-orange hover:underline">${APP_URL}/f/{form.slug}</a></p>
         </div>
 
         <!-- Embed Modal -->
@@ -103,7 +105,7 @@ try {
             </div>
             <p class="text-sm text-gray-500 mb-4">Paste this script tag on any page to embed the form.</p>
             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-              <code class="text-sm font-mono text-gray-700 break-all" id="embed-modal-code">&lt;script src="https://app.pouncefirst.com/api/f/{form.slug}/embed.js"&gt;&lt;/script&gt;</code>
+              <code class="text-sm font-mono text-gray-700 break-all" id="embed-modal-code">&lt;script src="${APP_URL}/api/f/{form.slug}/embed.js"&gt;&lt;/script&gt;</code>
             </div>
             <div class="flex items-center gap-3">
               <button id="copy-embed-modal" class="px-4 py-2 bg-charcoal text-white rounded-lg text-sm font-medium hover:bg-charcoal-light transition-colors">Copy to Clipboard</button>

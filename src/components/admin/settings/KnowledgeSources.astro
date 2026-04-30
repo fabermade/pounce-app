@@ -22,8 +22,9 @@ const { links = [], textEntries = [] } = Astro.props;
       </button>
     </div>
     <div id="knowledge-links-list" class="space-y-3">
+      <input type="hidden" name="knowledge.links" value="__empty_array__" data-empty-marker />
       {links.length === 0 && (
-        <p class="text-sm text-gray-400">No links configured.</p>
+        <p class="text-sm text-gray-400" data-empty-text>No links configured.</p>
       )}
       {links.map((link, i) => (
         <div class="knowledge-link-item p-3 border border-gray-200 rounded-lg" data-index={i}>
@@ -69,8 +70,9 @@ const { links = [], textEntries = [] } = Astro.props;
       </button>
     </div>
     <div id="knowledge-text-list" class="space-y-3">
+      <input type="hidden" name="knowledge.text" value="__empty_array__" data-empty-marker />
       {textEntries.length === 0 && (
-        <p class="text-sm text-gray-400">No text entries configured.</p>
+        <p class="text-sm text-gray-400" data-empty-text>No text entries configured.</p>
       )}
       {textEntries.map((entry, i) => (
         <div class="knowledge-text-item p-3 border border-gray-200 rounded-lg" data-index={i}>
@@ -123,8 +125,7 @@ const { links = [], textEntries = [] } = Astro.props;
       <input type="text" name="knowledge.links[${count}].description" placeholder="Description (optional)" class="w-full text-sm text-gray-400 bg-transparent border-none focus:outline-none" />
     `;
     linksList?.appendChild(div);
-    // Remove "No links" message if present
-    const noLinks = linksList?.querySelector('p.text-gray-400');
+    const noLinks = linksList?.querySelector('[data-empty-text]');
     if (noLinks) noLinks.remove();
   });
 
@@ -145,7 +146,7 @@ const { links = [], textEntries = [] } = Astro.props;
       <textarea name="knowledge.text[${count}].content" rows="3" placeholder="Content" class="w-full text-sm text-gray-600 bg-transparent border-none focus:outline-none resize-none"></textarea>
     `;
     textList?.appendChild(div);
-    const noText = textList?.querySelector('p.text-gray-400');
+    const noText = textList?.querySelector('[data-empty-text]');
     if (noText) noText.remove();
   });
 
@@ -155,7 +156,14 @@ const { links = [], textEntries = [] } = Astro.props;
     if (btn) {
       btn.closest('.knowledge-link-item')?.remove();
       if (linksList.querySelectorAll('.knowledge-link-item').length === 0) {
-        linksList.innerHTML = '<p class="text-sm text-gray-400">No links configured.</p>';
+        const emptyText = linksList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = 'No links configured.';
+          linksList.appendChild(p);
+        }
       }
     }
   });
@@ -165,7 +173,14 @@ const { links = [], textEntries = [] } = Astro.props;
     if (btn) {
       btn.closest('.knowledge-text-item')?.remove();
       if (textList.querySelectorAll('.knowledge-text-item').length === 0) {
-        textList.innerHTML = '<p class="text-sm text-gray-400">No text entries configured.</p>';
+        const emptyText = textList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = 'No text entries configured.';
+          textList.appendChild(p);
+        }
       }
     }
   });

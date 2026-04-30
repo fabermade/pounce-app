@@ -4,7 +4,6 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import KnowledgeSources from '../../components/admin/settings/KnowledgeSources.astro';
 import FaqSection from '../../components/admin/settings/FaqSection.astro';
 import BookingSection from '../../components/admin/settings/BookingSection.astro';
-import BookingConfig from '../../components/admin/settings/BookingConfig.astro';
 import AgentMode from '../../components/admin/settings/AgentMode.astro';
 import IntegrationsSection from '../../components/admin/settings/IntegrationsSection.astro';
 import ServicesSection from '../../components/admin/settings/ServicesSection.astro';
@@ -148,8 +147,9 @@ const emailKeySet = !!(providers.emailApiKey);
           <!-- Booking -->
           <BookingSection
             url={booking.url || ''}
-            ctaText={booking.ctaText || ''}
+            ctaText={booking.ctaText || booking.cta || ''}
             timing={booking.timing || 'after_first_exchange'}
+            provider={providers.booking || booking.provider || ''}
           />
 
           <!-- Integrations -->
@@ -209,12 +209,14 @@ const emailKeySet = !!(providers.emailApiKey);
       const formData = new FormData(formEl);
 
       for (const [key, value] of formData.entries()) {
-        // Convert string booleans to actual booleans
+        // Convert string booleans to actual booleans, handle empty array sentinel
         let parsedValue: unknown;
         if (value === 'on' || value === 'true') {
           parsedValue = true;
         } else if (value === 'false') {
           parsedValue = false;
+        } else if (value === '__empty_array__') {
+          parsedValue = '__empty_array__';
         } else {
           parsedValue = value;
         }
@@ -291,12 +293,26 @@ const emailKeySet = !!(providers.emailApiKey);
             if (!(parts[i]! in current)) current[parts[i]!] = {};
             current = current[parts[i]!] as Record<string, unknown>;
           }
-          current[parts[parts.length - 1]!] = parsedValue;
+          const lastKey = parts[parts.length - 1]!;
+          // Empty array sentinel → ensure this field is an empty array
+          if (parsedValue === '__empty_array__') {
+            if (!(lastKey in current)) current[lastKey] = [];
+            // If array items were already added, keep them — sentinel just ensures empty array
+          } else if (parsedValue === '' && Array.isArray(current[lastKey])) {
+            // Don't overwrite an existing array with empty string (e.g. from other form fields)
+          } else {
+            current[lastKey] = parsedValue;
+          }
           continue;
         }
 
         // Pattern 6: simple key
-        payload[key] = parsedValue;
+        // Empty array sentinel → replace with empty array
+        if (parsedValue === '__empty_array__') {
+          payload[key] = [];
+        } else {
+          payload[key] = parsedValue;
+        }
       }
 
       // Clean up: remove undefined entries from arrays (sparse arrays)

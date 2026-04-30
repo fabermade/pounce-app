@@ -45,8 +45,9 @@ const { style = 'professional', instructions = '', dos = [], donts = [] } = Astr
           <button type="button" data-add-do class="text-xs text-pounce-orange hover:text-pounce-orange-dark font-medium">+ Add</button>
         </div>
         <div id="dos-list" class="space-y-2">
+          <input type="hidden" name="tone.dos" value="__empty_array__" data-empty-marker />
           {dos.length === 0 && (
-            <p class="text-sm text-gray-400">No dos configured.</p>
+            <p class="text-sm text-gray-400" data-empty-text>No dos configured.</p>
           )}
           {dos.map((item, i) => (
             <div class="do-item flex items-center gap-2" data-index={i}>
@@ -75,8 +76,9 @@ const { style = 'professional', instructions = '', dos = [], donts = [] } = Astr
           <button type="button" data-add-dont class="text-xs text-pounce-orange hover:text-pounce-orange-dark font-medium">+ Add</button>
         </div>
         <div id="donts-list" class="space-y-2">
+          <input type="hidden" name="tone.donts" value="__empty_array__" data-empty-marker />
           {donts.length === 0 && (
-            <p class="text-sm text-gray-400">No don'ts configured.</p>
+            <p class="text-sm text-gray-400" data-empty-text>No don'ts configured.</p>
           )}
           {donts.map((item, i) => (
             <div class="dont-item flex items-center gap-2" data-index={i}>
@@ -123,7 +125,7 @@ const { style = 'professional', instructions = '', dos = [], donts = [] } = Astr
       </button>
     `;
     list.appendChild(div);
-    const empty = list.querySelector('p.text-gray-400');
+    const empty = list.querySelector('[data-empty-text]');
     if (empty) empty.remove();
   }
 
@@ -140,7 +142,14 @@ const { style = 'professional', instructions = '', dos = [], donts = [] } = Astr
     if (btn) {
       btn.closest('.do-item')?.remove();
       if (dosList.querySelectorAll('.do-item').length === 0) {
-        dosList.innerHTML = '<p class="text-sm text-gray-400">No dos configured.</p>';
+        const emptyText = dosList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = 'No dos configured.';
+          dosList.appendChild(p);
+        }
       }
     }
   });
@@ -150,7 +159,14 @@ const { style = 'professional', instructions = '', dos = [], donts = [] } = Astr
     if (btn) {
       btn.closest('.dont-item')?.remove();
       if (dontsList.querySelectorAll('.dont-item').length === 0) {
-        dontsList.innerHTML = '<p class="text-sm text-gray-400">No don\'ts configured.</p>';
+        const emptyText = dontsList.querySelector('[data-empty-text]');
+        if (!emptyText) {
+          const p = document.createElement('p');
+          p.className = 'text-sm text-gray-400';
+          p.dataset.emptyText = '';
+          p.textContent = "No don'ts configured.";
+          dontsList.appendChild(p);
+        }
       }
     }
   });

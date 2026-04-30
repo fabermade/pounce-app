@@ -64,6 +64,12 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
               <p className="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
+          <a
+            href="/api/admin/logout"
+            className="mt-3 block text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Log out
+          </a>
         </div>
       </aside>
 

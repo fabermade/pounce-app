@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Users, Settings, BarChart3, FileText } from 'lucide-react';
+import logoUpdated from '../assets/logo-updated.jpg';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -22,31 +23,34 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-100">
-          <a href="/admin" className="flex items-center gap-2">
-            <span className="text-2xl font-bold font-heading">
-              <span className="text-pounce-orange">P</span>
-              <span className="text-charcoal">ounce</span>
-            </span>
+        <div className="p-6 border-b border-gray-100 flex flex-col items-start">
+          <a href="/admin" className="block">
+            <img 
+              src={logoUpdated.src} 
+              alt="Pounce Logo" 
+              className="h-8 w-auto object-contain"
+            />
           </a>
-          <p className="text-xs text-gray-500 mt-1">Lead Response Dashboard</p>
+          <p className="text-xs font-medium text-gray-400 mt-3 tracking-wide uppercase">
+            Admin Panel
+          </p>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const isActive = currentPath === item.path;
             return (
               <a
                 key={item.path}
                 href={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-pounce-orange/10 text-pounce-orange'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-charcoal'
+                    ? 'bg-pounce-orange text-white shadow-sm ring-1 ring-pounce-orange-dark'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-charcoal'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                 {item.label}
               </a>
             );
@@ -61,7 +65,7 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-charcoal truncate">{currentUser?.name || 'Admin'}</p>
-              <p className="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
+              <p class="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
           <a

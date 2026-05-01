@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Users, Settings, BarChart3, FileText } from 'lucide-react';
+import logoUpdated from '../assets/logo-updated.jpg';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -25,7 +26,7 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
         <div className="p-6 border-b border-gray-100 flex flex-col items-start">
           <a href="/admin" className="block">
             <img 
-              src="/src/assets/logo-updated.jpg" 
+              src={logoUpdated.src} 
               alt="Pounce Logo" 
               className="h-8 w-auto object-contain"
             />
@@ -64,7 +65,7 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-charcoal truncate">{currentUser?.name || 'Admin'}</p>
-              <p className="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
+              <p class="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
           <a

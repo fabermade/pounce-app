@@ -2,7 +2,7 @@ version: "3.8"
 services:
   pounce:
     build: .
-    image: pouncefirst/pounce:latest
+    image: fabermade/pounce:latest
     ports:
       - "3000:3000"
     volumes:

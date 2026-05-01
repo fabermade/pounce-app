@@ -1,6 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Users, Settings, BarChart3, FileText } from 'lucide-react';
-import logoUpdated from '../assets/logo-updated.jpg';
+import logoUpdated from '../../assets/logo-updated.jpg';
 
 interface AdminLayoutProps {
   children: React.ReactNode;

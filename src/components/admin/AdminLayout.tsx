@@ -65,7 +65,7 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-charcoal truncate">{currentUser?.name || 'Admin'}</p>
-              <p class="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
+              <p className="text-xs text-gray-500 truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
           <a

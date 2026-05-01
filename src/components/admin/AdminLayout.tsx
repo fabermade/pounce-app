@@ -36,20 +36,20 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const isActive = currentPath === item.path;
             return (
               <a
                 key={item.path}
                 href={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-pounce-orange/10 text-pounce-orange'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-charcoal'
+                    ? 'bg-pounce-orange text-white shadow-sm ring-1 ring-pounce-orange-dark'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-charcoal'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                 {item.label}
               </a>
             );

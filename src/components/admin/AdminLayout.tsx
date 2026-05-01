@@ -22,14 +22,17 @@ export default function AdminLayout({ children, currentPath, currentUser }: Admi
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-100">
-          <a href="/admin" className="flex items-center gap-2">
-            <span className="text-2xl font-bold font-heading">
-              <span className="text-pounce-orange">P</span>
-              <span className="text-charcoal">ounce</span>
-            </span>
+        <div className="p-6 border-b border-gray-100 flex flex-col items-start">
+          <a href="/admin" className="block">
+            <img 
+              src="/src/assets/logo-updated.jpg" 
+              alt="Pounce Logo" 
+              className="h-8 w-auto object-contain"
+            />
           </a>
-          <p className="text-xs text-gray-500 mt-1">Lead Response Dashboard</p>
+          <p className="text-xs font-medium text-gray-400 mt-3 tracking-wide uppercase">
+            Admin Panel
+          </p>
         </div>
 
         {/* Navigation */}

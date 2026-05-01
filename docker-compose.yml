@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  pounce:
+    build: .
+    image: pouncefirst/pounce:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - pounce-data:/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pounce-data:
